@@ -1,0 +1,506 @@
+<?php
+
+use Livewire\Attributes\Layout;
+use Livewire\Volt\Component;
+use App\Models\PermohonanRpl;
+use App\Models\AsesmenMandiri;
+use App\Models\DokumenBukti;
+use App\Enums\StatusPermohonanEnum;
+
+new #[Layout('components.layouts.peserta')] class extends Component {
+    public PermohonanRpl $permohonan;
+
+    // pertanyaanRatings[pertanyaan_id] = nilai (1-5)
+    public array $pertanyaanRatings = [];
+
+    // pertanyaan_id yang sudah punya record asesmen (untuk tampilkan tombol Lampirkan Berkas)
+    public array $asesmenIds = [];
+
+    // buktiTerpilih[pertanyaan_id] = [nama_dokumen, ...]
+    public array $buktiTerpilih = [];
+
+    public function with(): array
+    {
+        $peserta = auth()->user()->peserta;
+
+        return [
+            'semuaBerkas' => $peserta
+                ? DokumenBukti::where('peserta_id', $peserta->id)->get()
+                : collect(),
+        ];
+    }
+
+    public function mount(PermohonanRpl $permohonan): void
+    {
+        abort_if($permohonan->peserta_id !== auth()->user()->peserta?->id, 403);
+
+        $this->permohonan = $permohonan->load([
+            'programStudi',
+            'rplMataKuliah.mataKuliah.cpmk',
+            'rplMataKuliah.mataKuliah.pertanyaan',
+            'rplMataKuliah.asesmenMandiri.pertanyaan',
+        ]);
+
+        foreach ($this->permohonan->rplMataKuliah as $rplMk) {
+            foreach ($rplMk->asesmenMandiri as $asesmen) {
+                $this->pertanyaanRatings[$asesmen->pertanyaan_id] = $asesmen->penilaian_diri;
+                $this->buktiTerpilih[$asesmen->pertanyaan_id]     = $asesmen->referensi_berkas ?? [];
+                $this->asesmenIds[]                               = $asesmen->pertanyaan_id;
+            }
+        }
+    }
+
+    public function saveRating(int $rplMkId, int $pertanyaanId, int $nilai): void
+    {
+        abort_if($nilai < 1 || $nilai > 5, 422);
+
+        $this->pertanyaanRatings[$pertanyaanId] = $nilai;
+
+        AsesmenMandiri::updateOrCreate(
+            ['rpl_mata_kuliah_id' => $rplMkId, 'pertanyaan_id' => $pertanyaanId],
+            ['penilaian_diri' => $nilai]
+        );
+
+        if (! in_array($pertanyaanId, $this->asesmenIds)) {
+            $this->asesmenIds[] = $pertanyaanId;
+        }
+    }
+
+    public function toggleBerkas(int $dokumenId, int $pertanyaanId, int $rplMkId): void
+    {
+        $asm = AsesmenMandiri::where('rpl_mata_kuliah_id', $rplMkId)
+            ->where('pertanyaan_id', $pertanyaanId)
+            ->first();
+
+        if (! $asm) return;
+
+        $dokumen = DokumenBukti::findOrFail($dokumenId);
+        $nama      = $dokumen->nama_dokumen;
+        $referensi = $asm->referensi_berkas ?? [];
+
+        if (in_array($nama, $referensi)) {
+            $referensi = array_values(array_filter($referensi, fn($n) => $n !== $nama));
+        } else {
+            $referensi[] = $nama;
+        }
+
+        $asm->update(['referensi_berkas' => $referensi]);
+
+        $this->buktiTerpilih[$pertanyaanId] = $referensi;
+    }
+
+    public function removeBerkas(string $namaBerkas, int $pertanyaanId, int $rplMkId): void
+    {
+        $asm = AsesmenMandiri::where('rpl_mata_kuliah_id', $rplMkId)
+            ->where('pertanyaan_id', $pertanyaanId)
+            ->first();
+
+        if (! $asm) return;
+
+        $referensi = array_values(array_filter(
+            $asm->referensi_berkas ?? [],
+            fn($n) => $n !== $namaBerkas
+        ));
+
+        $asm->update(['referensi_berkas' => $referensi]);
+        $this->buktiTerpilih[$pertanyaanId] = $referensi;
+    }
+
+    public function totalPertanyaan(): int
+    {
+        return $this->permohonan->rplMataKuliah->sum(
+            fn($rplMk) => $rplMk->mataKuliah->pertanyaan->count()
+        );
+    }
+
+    public function totalDinilai(): int
+    {
+        $allIds = $this->permohonan->rplMataKuliah
+            ->flatMap(fn($rplMk) => $rplMk->mataKuliah->pertanyaan->pluck('id'))
+            ->all();
+
+        return count(array_intersect($allIds, array_keys($this->pertanyaanRatings)));
+    }
+
+    public function isComplete(): bool
+    {
+        return $this->totalPertanyaan() > 0 && $this->totalDinilai() >= $this->totalPertanyaan();
+    }
+
+    public function ajukan(): void
+    {
+        abort_if(! $this->isComplete(), 422);
+        abort_if($this->permohonan->status !== StatusPermohonanEnum::Diproses, 422);
+
+        $this->permohonan->update(['status' => StatusPermohonanEnum::Verifikasi]);
+
+        $this->redirect(route('peserta.pengajuan.index'), navigate: true);
+    }
+}; ?>
+
+<x-slot:title>Asesmen Mandiri</x-slot:title>
+<x-slot:subtitle><a href="{{ route('peserta.pengajuan.index') }}" class="text-primary hover:underline">Pengajuan RPL</a> &rsaquo; {{ $permohonan->nomor_permohonan }}</x-slot:subtitle>
+
+<div x-data="{ modalBukti: { show: false, pertanyaanId: 0, rplMkId: 0 }, modalAjukan: false }">
+
+    @php
+        $isDraf      = $permohonan->status === StatusPermohonanEnum::Diproses;
+        $total       = $this->totalPertanyaan();
+        $dinilai     = $this->totalDinilai();
+        $progress    = $total > 0 ? round($dinilai / $total * 100) : 0;
+        $ratingLabels = []; // skala 1-5 tanpa label teks (Poin 6)
+    @endphp
+
+    {{-- Banner read-only (asesmen sudah disubmit) --}}
+    @if (! $isDraf)
+    @php
+        $bannerColor = $permohonan->status === StatusPermohonanEnum::Diajukan
+            ? ['bg' => 'bg-[#FFF8E1] border-[#FFE082]', 'text' => 'text-[#b45309]', 'icon' => '#b45309',
+               'msg' => 'Menunggu admin memproses pengajuan — asesmen belum dapat diisi.']
+            : ['bg' => 'bg-[#E6F4EA] border-[#A8D5B5]', 'text' => 'text-[#1e7e3e]', 'icon' => '#1e7e3e',
+               'msg' => 'Asesmen mandiri telah disubmit — jawaban tidak dapat diubah.'];
+    @endphp
+    <div class="{{ $bannerColor['bg'] }} border rounded-xl px-4 py-3 mb-5 flex items-center gap-3">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="{{ $bannerColor['icon'] }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <p class="text-[12px] leading-[1.5] font-medium {{ $bannerColor['text'] }}">
+            {{ $bannerColor['msg'] }}
+        </p>
+    </div>
+    @endif
+
+    {{-- Progress bar --}}
+    <div class="bg-white rounded-xl border border-[#E5E8EC] px-5 py-4 mb-5">
+        <div class="flex items-center justify-between mb-2">
+            <span class="text-[13px] font-semibold text-[#1a2a35]">Progress Penilaian Diri</span>
+            <span class="text-[13px] font-semibold text-primary">{{ $dinilai }} / {{ $total }} Pertanyaan</span>
+        </div>
+        <div class="w-full h-2 bg-[#E5E8EC] rounded-full overflow-hidden">
+            <div class="h-full bg-primary rounded-full transition-all duration-300"
+                 style="width: {{ $progress }}%"></div>
+        </div>
+        <div class="text-[11px] text-[#8a9ba8] mt-1.5">
+            @if (! $isDraf && $permohonan->status !== StatusPermohonanEnum::Diajukan)
+                <span class="text-[#1e7e3e] font-medium">✓ Asesmen disubmit. Menunggu verifikasi bersama asesor.</span>
+            @elseif ($this->isComplete())
+                <span class="text-[#1e7e3e] font-medium">✓ Semua pertanyaan sudah dinilai. Lampirkan berkas pendukung, lalu ajukan permohonan.</span>
+            @else
+                {{ $total - $dinilai }} pertanyaan lagi perlu dinilai.
+            @endif
+        </div>
+    </div>
+
+    {{-- Info — belum diproses --}}
+    @if ($permohonan->status === StatusPermohonanEnum::Diajukan)
+    <div class="bg-[#F0F7FA] border border-[#C5DDE5] rounded-xl px-4 py-3.5 mb-5 flex gap-3">
+        <svg class="w-4 h-4 text-primary shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <p class="text-[12px] text-[#1a2a35] leading-[1.6]">
+            Pengajuan Anda sedang diproses oleh admin. Asesmen mandiri akan tersedia setelah admin memverifikasi dan menetapkan mata kuliah.
+        </p>
+    </div>
+    @endif
+
+    {{-- Tip berkas — hanya tampil saat bisa diisi --}}
+    @if ($isDraf && $semuaBerkas->isEmpty())
+    <div class="bg-[#FFF8E1] border border-[#FFE082] rounded-xl px-4 py-3 mb-5 flex items-center gap-3">
+        <svg class="w-4 h-4 text-[#b45309] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <p class="text-[12px] text-[#b45309] leading-[1.5]">
+            Upload berkas pendukung Anda terlebih dahulu di menu
+            <a href="{{ route('peserta.berkas.index') }}" class="font-semibold underline">Berkas Pendukung</a>,
+            lalu lampirkan ke setiap pertanyaan di bawah.
+        </p>
+    </div>
+    @endif
+
+    {{-- Per MK --}}
+    @foreach ($permohonan->rplMataKuliah as $rplMk)
+    @php $mk = $rplMk->mataKuliah; @endphp
+    <div class="bg-white rounded-xl border border-[#E5E8EC] overflow-hidden mb-4" wire:key="rplmk-{{ $rplMk->id }}">
+
+        {{-- Header MK — nama dan kode disembunyikan dari peserta (Poin 13) --}}
+        <div class="flex items-center gap-3 px-5 py-4 border-b border-[#F0F2F5]">
+            <span class="text-[11px] font-semibold text-primary bg-[#E8F4F8] px-[8px] py-[4px] rounded shrink-0">{{ $mk->nama }}</span>
+            <div class="flex-1">
+                {{-- <div class="text-[13px] font-semibold text-[#1a2a35]">{{ $mk->sks }} SKS · Semester {{ $mk->semester }}</div> --}}
+                <div class="text-[11px] text-[#8a9ba8]">Keterampilan ini dapat diperoleh dari pengalaman kerja, pelatihan, sertifikasi, atau pendidikan formal. Dapat dibuktikan dengan transkrip, CV, sertifikat, surat keterangan, dll.</div>
+            </div>
+            @php
+                $mkPtIds   = $mk->pertanyaan->pluck('id')->all();
+                $mkDinilai = count(array_intersect($mkPtIds, array_keys($this->pertanyaanRatings)));
+                $mkTotal   = count($mkPtIds);
+            @endphp
+            <span class="text-[11px] font-medium {{ $mkDinilai >= $mkTotal && $mkTotal > 0 ? 'text-[#1e7e3e]' : 'text-[#8a9ba8]' }} shrink-0">
+                {{ $mkDinilai }}/{{ $mkTotal }}
+            </span>
+        </div>
+
+        <div class="px-5 py-4">
+
+            {{-- CPMK referensi — disembunyikan
+            @if ($mk->cpmk->isNotEmpty())
+            <div class="mb-4">
+                <div class="text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.8px] mb-2">Capaian Pembelajaran (CPMK)</div>
+                <div class="space-y-1.5">
+                    @foreach ($mk->cpmk as $cpmk)
+                    <div class="flex items-start gap-2" wire:key="cpmk-{{ $cpmk->id }}">
+                        <span class="w-4 h-4 rounded-full bg-[#E8F4F8] text-primary text-[9px] font-semibold flex items-center justify-center shrink-0 mt-0.5">{{ $cpmk->urutan }}</span>
+                        <span class="text-[12px] text-[#5a6a75] leading-[1.5]">{{ $cpmk->deskripsi }}</span>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+            --}}
+
+            {{-- Pertanyaan penilaian diri --}}
+            @if ($mk->pertanyaan->isEmpty())
+                <div class="text-[12px] text-[#8a9ba8] py-2">Belum ada pertanyaan asesmen untuk mata kuliah ini.</div>
+            @else
+                {{-- <div class="text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.8px] mb-3">Sub CPMK & Bukti Pendukung</div> --}}
+                @foreach ($mk->pertanyaan as $pt)
+                @php $asm = $rplMk->asesmenMandiri->firstWhere('pertanyaan_id', $pt->id); @endphp
+                <div class="py-3 border-b border-[#F6F8FA] last:border-0" wire:key="pt-{{ $pt->id }}">
+
+                    {{-- Teks pertanyaan --}}
+                    <div class="flex items-start gap-2 mb-2.5">
+                        <span class="w-5 h-5 rounded-full bg-[#F0F2F5] text-[#5a6a75] text-[10px] font-semibold flex items-center justify-center shrink-0 mt-0.5">{{ $pt->urutan }}</span>
+                        <span class="flex-1 text-[12px] text-[#1a2a35] leading-[1.5]">{{ $pt->pertanyaan }}</span>
+                    </div>
+
+                    {{-- Rating buttons --}}
+                    @if ($isDraf)
+                    {{-- Mode edit: Alpine untuk feedback instan, $wire untuk simpan --}}
+                    <div class="ml-7" x-data="{ sel: {{ $pertanyaanRatings[$pt->id] ?? 'null' }} }">
+                        <p class="text-[11px] text-[#8a9ba8] mb-2">Semakin besar angka yang dipilih, semakin Anda memahami kompetensi ini.</p>
+                        <div class="flex flex-wrap gap-2 mb-2">
+                            @foreach ([1, 2, 3, 4, 5] as $nilai)
+                            <button
+                                @click="sel = {{ $nilai }}; $wire.saveRating({{ $rplMk->id }}, {{ $pt->id }}, {{ $nilai }})"
+                                :class="sel === {{ $nilai }}
+                                    ? 'bg-primary text-white border-primary'
+                                    : 'bg-white text-[#5a6a75] border-[#D8DDE2] hover:border-primary hover:text-primary'"
+                                class="w-10 h-10 rounded-lg text-[13px] font-semibold border transition-all">
+                                {{ $nilai }}
+                            </button>
+                            @endforeach
+                        </div>
+
+                        {{-- Berkas terlampir + tombol lampirkan (dalam scope Alpine agar muncul instan) --}}
+                        <div class="flex items-center gap-2 flex-wrap">
+                            @foreach ($buktiTerpilih[$pt->id] ?? [] as $namaBerkas)
+                            <span class="inline-flex items-center gap-1.5 text-[11px] font-medium bg-[#E8F4F8] text-primary px-2.5 py-1 rounded-full" wire:key="chip-{{ $pt->id }}-{{ $loop->index }}">
+                                <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+                                </svg>
+                                {{ Str::limit($namaBerkas, 24) }}
+                                <button wire:click="removeBerkas('{{ $namaBerkas }}', {{ $pt->id }}, {{ $rplMk->id }})"
+                                        class="ml-0.5 text-primary/50 hover:text-[#c62828] transition-colors leading-none"
+                                        title="Hapus lampiran">
+                                    <svg class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                                    </svg>
+                                </button>
+                            </span>
+                            @endforeach
+
+                            {{-- Muncul instan via Alpine x-show, tanpa round-trip Livewire --}}
+                            <button x-show="sel !== null"
+                                    x-transition:enter="transition ease-out duration-150"
+                                    x-transition:enter-start="opacity-0 scale-90"
+                                    x-transition:enter-end="opacity-100 scale-100"
+                                    @click="modalBukti = { show: true, pertanyaanId: {{ $pt->id }}, rplMkId: {{ $rplMk->id }} }"
+                                    class="inline-flex items-center gap-1 text-[11px] text-[#8a9ba8] hover:text-primary border border-dashed border-[#D8DDE2] hover:border-primary px-2.5 py-1 rounded-full transition-colors">
+                                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                                </svg>
+                                Lampirkan Berkas
+                            </button>
+                        </div>
+                    </div>
+                    @else
+                    {{-- Mode baca: tampil static, tidak bisa diklik --}}
+                    <div class="ml-7">
+                        <div class="flex flex-wrap gap-2 mb-2">
+                            @foreach ([1, 2, 3, 4, 5] as $nilai)
+                            <span class="w-10 h-10 rounded-lg text-[13px] font-semibold border flex items-center justify-center
+                                         {{ ($pertanyaanRatings[$pt->id] ?? null) === $nilai
+                                             ? 'bg-primary text-white border-primary'
+                                             : 'bg-[#F8FAFB] text-[#c5cdd5] border-[#EAEDF0]' }}">
+                                {{ $nilai }}
+                            </span>
+                            @endforeach
+                        </div>
+                        @if (! empty($buktiTerpilih[$pt->id]))
+                        <div class="flex items-center gap-2 flex-wrap">
+                            @foreach ($buktiTerpilih[$pt->id] as $namaBerkas)
+                            <span class="inline-flex items-center gap-1.5 text-[11px] font-medium bg-[#E8F4F8] text-primary px-2.5 py-1 rounded-full">
+                                <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+                                </svg>
+                                {{ Str::limit($namaBerkas, 24) }}
+                            </span>
+                            @endforeach
+                        </div>
+                        @endif
+                    </div>
+                    @endif
+
+                </div>
+                @endforeach
+            @endif
+
+        </div>
+
+    </div>
+    @endforeach
+
+    {{-- Navigasi bawah --}}
+    <div class="flex items-center justify-between mt-2">
+        <a href="{{ route('peserta.pengajuan.index') }}"
+           class="text-[13px] text-[#5a6a75] hover:text-primary transition-colors no-underline">
+            ← Kembali ke Daftar
+        </a>
+        @if ($isDraf)
+            @if ($this->isComplete())
+            <button @click="modalAjukan = true"
+                    class="bg-primary hover:bg-[#005f78] text-white text-[13px] font-semibold px-5 py-2.5 rounded-lg transition-colors">
+                Submit Asesmen
+            </button>
+            @else
+            <button disabled
+                    title="{{ $total - $dinilai }} pertanyaan belum dinilai"
+                    class="bg-[#E5E8EC] text-[#8a9ba8] text-[13px] font-semibold px-5 py-2.5 rounded-lg cursor-not-allowed">
+                Submit Asesmen
+            </button>
+            @endif
+        @elseif ($permohonan->status === StatusPermohonanEnum::Diajukan)
+        <span class="text-[12px] font-medium px-3 py-1.5 rounded-lg bg-[#FFF8E1] text-[#b45309]">
+            Menunggu admin memproses
+        </span>
+        @else
+        <span class="text-[12px] font-medium px-3 py-1.5 rounded-lg {{ $permohonan->status->badgeClass() }}">
+            {{ $permohonan->status->label() }}
+        </span>
+        @endif
+    </div>
+
+    {{-- Modal Konfirmasi Ajukan --}}
+    <div x-show="modalAjukan" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+
+            {{-- Icon --}}
+            <div class="w-12 h-12 rounded-full bg-[#FFF8E1] flex items-center justify-center mb-4 mx-auto">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+
+            {{-- Judul & pesan --}}
+            <h3 class="text-[15px] font-semibold text-[#1a2a35] text-center mb-2">Submit Asesmen Mandiri?</h3>
+            <p class="text-[12px] text-[#5a6a75] text-center leading-[1.6] mb-4">
+                Apakah Anda yakin seluruh penilaian diri sudah benar?<br>
+                Asesmen yang sudah disubmit <strong>tidak dapat diubah</strong>.
+            </p>
+
+            {{-- Ringkasan --}}
+            <div class="bg-[#F8FAFB] rounded-xl px-4 py-3 mb-5 space-y-1.5">
+                <div class="flex items-center justify-between text-[12px]">
+                    <span class="text-[#8a9ba8]">Pertanyaan dinilai</span>
+                    <span class="font-semibold text-[#1a2a35]">{{ $dinilai }} / {{ $total }}</span>
+                </div>
+                <div class="flex items-center justify-between text-[12px]">
+                    <span class="text-[#8a9ba8]">Berkas diunggah</span>
+                    <span class="font-semibold text-[#1a2a35]">{{ $semuaBerkas->count() }} berkas</span>
+                </div>
+            </div>
+
+            {{-- Tombol --}}
+            <div class="flex gap-3">
+                <button @click="modalAjukan = false"
+                        class="flex-1 h-[42px] bg-white border border-[#D8DDE2] text-[13px] font-semibold text-[#5a6a75] rounded-xl hover:bg-[#F8FAFB] transition-colors">
+                    Periksa Lagi
+                </button>
+                <button wire:click="ajukan"
+                        wire:loading.attr="disabled"
+                        class="flex-1 h-[42px] bg-primary hover:bg-[#005f78] text-white text-[13px] font-semibold rounded-xl transition-colors disabled:opacity-60">
+                    <span wire:loading.remove wire:target="ajukan">Ya, Submit</span>
+                    <span wire:loading wire:target="ajukan">Menyimpan...</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    {{-- Modal Pilih Berkas --}}
+    <div x-show="modalBukti.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+
+            {{-- Header --}}
+            <div class="flex items-center justify-between px-5 py-4 border-b border-[#F0F2F5]">
+                <h3 class="text-[14px] font-semibold text-[#1a2a35]">Pilih Berkas Pendukung</h3>
+                <button @click="modalBukti.show = false"
+                        class="text-[#8a9ba8] hover:text-[#1a2a35] transition-colors p-1">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+
+            {{-- Body --}}
+            <div class="px-5 py-4 max-h-[360px] overflow-y-auto">
+                @if ($semuaBerkas->isEmpty())
+                    <div class="py-8 text-center">
+                        <p class="text-[12px] text-[#8a9ba8] mb-3">Belum ada berkas yang diunggah.</p>
+                        <a href="{{ route('peserta.berkas.index') }}"
+                           class="text-[12px] font-semibold text-primary hover:underline">
+                            Upload berkas di menu "Berkas Pendukung" →
+                        </a>
+                    </div>
+                @else
+                    <p class="text-[11px] text-[#8a9ba8] mb-3">Pilih satu atau lebih berkas sebagai bukti pendukung jawaban ini.</p>
+                    @foreach ($semuaBerkas as $dok)
+                    <button @click="$wire.toggleBerkas({{ $dok->id }}, modalBukti.pertanyaanId, modalBukti.rplMkId)"
+                            :class="($wire.buktiTerpilih[modalBukti.pertanyaanId] ?? []).includes({{ json_encode($dok->nama_dokumen) }})
+                                ? 'border-primary bg-[#E8F4F8]'
+                                : 'border-[#E5E8EC] hover:border-primary hover:bg-[#FAFBFC]'"
+                            class="w-full flex items-center gap-3 p-3 rounded-xl mb-2 border transition-all text-left"
+                            wire:key="modal-dok-{{ $dok->id }}">
+                        <div :class="($wire.buktiTerpilih[modalBukti.pertanyaanId] ?? []).includes({{ json_encode($dok->nama_dokumen) }}) ? 'bg-primary' : 'bg-[#F0F2F5]'"
+                             class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors">
+                            <svg :class="($wire.buktiTerpilih[modalBukti.pertanyaanId] ?? []).includes({{ json_encode($dok->nama_dokumen) }}) ? 'text-white' : 'text-[#5a6a75]'"
+                                 class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[12px] font-medium text-[#1a2a35] truncate">{{ $dok->nama_dokumen }}</div>
+                            <div class="text-[11px] text-[#8a9ba8]">{{ $dok->jenis_dokumen->label() }}</div>
+                        </div>
+                        <svg x-show="($wire.buktiTerpilih[modalBukti.pertanyaanId] ?? []).includes({{ json_encode($dok->nama_dokumen) }})"
+                             class="w-4 h-4 text-primary shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                    </button>
+                    @endforeach
+                @endif
+            </div>
+
+            {{-- Footer --}}
+            <div class="px-5 py-4 border-t border-[#F0F2F5]">
+                <button @click="modalBukti.show = false"
+                        class="w-full h-[40px] bg-primary hover:bg-[#005f78] text-white text-[12px] font-semibold rounded-xl transition-colors">
+                    Selesai
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+</div>
