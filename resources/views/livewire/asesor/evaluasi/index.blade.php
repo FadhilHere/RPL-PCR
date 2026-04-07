@@ -25,15 +25,17 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     public array $mkCatatan = [];
     // nilaiAsesor[asesmen_mandiri_id] = nilai int (1-5)
     public array $nilaiAsesor = [];
+    // nilaiTransfer[rpl_mk_id] = 'A'|'AB'|... (kalau hybrid lewat matkulLampau)
+    public array $nilaiTransfer = [];
 
     public function mount(PermohonanRpl $permohonan): void
     {
         $asesorId   = auth()->user()->asesor?->id;
-        $isAssigned = $asesorId && Asesor::find($asesorId)
-            ->programStudi()->where('program_studi_id', $permohonan->program_studi_id)->exists();
+        // Validasi: Apakah Asesor ini telah di-assign ke permohonan ini?
+        $isAssigned = $asesorId && $permohonan->asesor()->where('asesor_id', $asesorId)->exists();
 
         if (! $isAssigned) {
-            abort(403, 'Anda tidak ditugaskan ke prodi dari permohonan ini.');
+            abort(403, 'Anda tidak ditugaskan/diassign ke permohonan ini.');
         }
 
         $this->permohonan = $permohonan->load([
@@ -50,12 +52,14 @@ new #[Layout('components.layouts.asesor')] class extends Component {
             'rplMataKuliah.asesmenMandiri.pertanyaan',
             'rplMataKuliah.asesmenMandiri.evaluasiVatm',
             'rplMataKuliah.asesmenMandiri.nilaiAsesor',
+            'rplMataKuliah.matkulLampau',
             'verifikasiBersama',
         ]);
 
         foreach ($this->permohonan->rplMataKuliah as $rplMk) {
             $this->mkStatus[$rplMk->id]  = $rplMk->status?->value ?? StatusRplMataKuliahEnum::Menunggu->value;
             $this->mkCatatan[$rplMk->id] = $rplMk->catatan_asesor ?? '';
+            $this->nilaiTransfer[$rplMk->id] = $rplMk->nilai_transfer ?? '';
 
             foreach ($rplMk->asesmenMandiri as $asm) {
                 $this->nilaiAsesor[$asm->id] = $asm->nilaiAsesor?->nilai ?? 0;
@@ -75,6 +79,31 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         $this->permohonan->load('verifikasiBersama');
         $this->permohonan->refresh();
         $this->berkasBA = null;
+        $this->dispatch('notify-saved');
+    }
+
+    public function simpanNilaiTransfer(int $rplMkId): void
+    {
+        $nilai = $this->nilaiTransfer[$rplMkId] ?? '';
+
+        $this->validate([
+            "nilaiTransfer.{$rplMkId}" => 'required|in:A,AB,B,BC,C,D,E',
+        ], [], ["nilaiTransfer.{$rplMkId}" => 'grade huruf']);
+
+        $nilaiEnum = \App\Enums\NilaiHurufEnum::from($nilai);
+        $rplMk = \App\Models\RplMataKuliah::with('mataKuliah')->findOrFail($rplMkId);
+        
+        $status = $nilaiEnum->diakui() ? StatusRplMataKuliahEnum::Diakui : StatusRplMataKuliahEnum::TidakDiakui;
+
+        $rplMk->update([
+            'nilai_transfer'  => $nilaiEnum->value,
+            'catatan_asesor'  => $this->mkCatatan[$rplMkId] ?? null,
+            'status'          => $status,
+            'sks_diakui'      => $nilaiEnum->diakui() ? ($rplMk->mataKuliah->sks ?? 0) : 0,
+        ]);
+
+        $this->mkStatus[$rplMkId] = $status->value;
+        $this->permohonan->refresh();
         $this->dispatch('notify-saved');
     }
 
@@ -142,6 +171,13 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
         $this->permohonan->refresh();
         $this->dispatch('notify-saved');
+    }
+
+    public function with(): array
+    {
+        return [
+            'nilaiHurufOptions' => \App\Enums\NilaiHurufEnum::cases(),
+        ];
     }
 }; ?>
 

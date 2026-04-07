@@ -18,13 +18,13 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
     public function with(): array
     {
-        $asesor   = auth()->user()->asesor;
-        $prodiIds = $asesor ? $asesor->programStudi()->pluck('program_studi_id')->toArray() : [];
+        $asesor = auth()->user()->asesor;
+        // Hanya render permohonan yang telah diassign ke asesor ini
+        $baseQuery = $asesor ? $asesor->permohonan() : PermohonanRpl::query()->where('id', 0);
 
-        $query = PermohonanRpl::query()
+        $query = (clone $baseQuery)
             ->with(['peserta.user', 'programStudi'])
             ->whereIn('status', [StatusPermohonanEnum::Diproses, StatusPermohonanEnum::Verifikasi, StatusPermohonanEnum::DalamReview, StatusPermohonanEnum::Disetujui])
-            ->whereIn('program_studi_id', $prodiIds)
             ->when($this->search, fn($q) => $q->whereHas('peserta.user', function ($q) {
                 $q->where('nama', 'like', "%{$this->search}%");
             }))
@@ -33,7 +33,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
         return [
             'permohonanList'     => $query->paginate(15),
-            'tidakAdaAssignment' => empty($prodiIds),
+            'tidakAdaAssignment' => ! $asesor,
         ];
     }
 }; ?>
@@ -109,9 +109,9 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                 <tr>
                     <td colspan="6" class="px-5 py-12 text-center text-[13px] text-[#8a9ba8]">
                         @if ($tidakAdaAssignment)
-                            Anda belum ditugaskan ke program studi manapun. Hubungi admin untuk pengaturan.
+                            Anda belum memiliki profil Asesor yang aktif. Hubungi admin untuk pengaturan.
                         @else
-                            Tidak ada pengajuan masuk.
+                            Tidak ada pengajuan yang di-assign ke Anda saat ini.
                         @endif
                     </td>
                 </tr>

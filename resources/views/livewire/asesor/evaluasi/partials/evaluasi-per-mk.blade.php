@@ -35,7 +35,7 @@
         </div>
         @endif
 
-        {{-- Sub CPMK + VATM --}}
+        {{-- Evaluasi VATM 1-5 Asesmen Mandiri (Selalu Dimunculkan) --}}
         @if ($rplMk->asesmenMandiri->isNotEmpty())
         <div class="mb-5">
             <div class="text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.8px] mb-3">Sub CPMK — Penilaian Diri Peserta & Evaluasi VATM</div>
@@ -131,51 +131,114 @@
         <div class="text-[12px] text-[#8a9ba8] mb-5">Peserta belum mengisi asesmen mandiri untuk mata kuliah ini.</div>
         @endif
 
-        {{-- Rekomendasi otomatis berdasarkan rata-rata nilai asesor (Poin 16) --}}
-        @php
-            $hitungAction = app(\App\Actions\Asesor\HitungKeputusanMkAction::class);
-            $rataRata     = $hitungAction->rataRata($rplMk->load('asesmenMandiri.nilaiAsesor'));
-            $rekomendasi  = $rataRata !== null ? $hitungAction->execute($rplMk) : null;
-        @endphp
-        @if ($rataRata !== null)
-        <div class="mt-3 mb-1 flex items-center gap-3 px-1">
-            <span class="text-[11px] text-[#8a9ba8]">
-                Rata-rata nilai asesor:
-                <span class="font-semibold text-[#1a2a35]">{{ $rataRata }}</span> / 5
-            </span>
-            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full
-                {{ $rekomendasi === \App\Enums\StatusRplMataKuliahEnum::Diakui
-                    ? 'bg-[#E6F4EA] text-[#1e7e3e]'
-                    : 'bg-[#FCE8E6] text-[#c62828]' }}">
-                Rekomendasi: {{ $rekomendasi?->label() }}
-            </span>
-            <span class="text-[10px] text-[#b0bec5]">— asesor dapat override di bawah</span>
-        </div>
-        @endif
+        {{-- Cek apakah pakai MK Lampau / PT Asal atau Asesmen Mandiri biasa --}}
+        @if ($rplMk->has_mk_sejenis && $rplMk->matkulLampau->isNotEmpty())
+        <div class="mb-5 border-t border-[#F0F2F5] pt-5">
+            <div class="text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.8px] mb-2">MK di PT Asal yang Diajukan Peserta</div>
+            <div class="bg-[#F4F6F8] rounded-xl overflow-hidden mb-4 border border-[#E5E8EC]">
+                <table class="w-full text-[12px]">
+                    <thead>
+                        <tr class="border-b border-[#E5E8EC]">
+                            <th class="text-left font-semibold text-[#8a9ba8] px-4 py-2.5">Kode MK</th>
+                            <th class="text-left font-semibold text-[#8a9ba8] px-4 py-2.5">Nama MK PT Asal</th>
+                            <th class="text-center font-semibold text-[#8a9ba8] px-4 py-2.5 w-20">SKS</th>
+                            <th class="text-center font-semibold text-[#8a9ba8] px-4 py-2.5 w-28">Nilai Peserta</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($rplMk->matkulLampau as $ml)
+                        <tr class="border-b border-[#EFF1F3] last:border-0 bg-white">
+                            <td class="px-4 py-3 text-[#5a6a75] font-medium">{{ $ml->kode_mk }}</td>
+                            <td class="px-4 py-3 text-[#1a2a35] font-semibold">{{ $ml->nama_mk }}</td>
+                            <td class="px-4 py-3 text-center text-[#5a6a75]">{{ $ml->sks }}</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[#E8F4F8] text-primary text-[12px] font-bold">{{ $ml->nilai_huruf?->value ?? '-' }}</span>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
 
-        {{-- Set status MK (hanya saat dalam_review / disetujui) --}}
-        @if (in_array($permohonan->status, [\App\Enums\StatusPermohonanEnum::DalamReview, \App\Enums\StatusPermohonanEnum::Disetujui]))
-        <div class="border-t border-[#F0F2F5] pt-4">
-            <div class="text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.8px] mb-3">Status & Catatan Asesor</div>
-            <div class="flex items-start gap-3">
-                <div class="w-[200px] shrink-0">
-                    <x-form.select
-                        wire:model="mkStatus.{{ $rplMk->id }}"
-                        :options="collect(\App\Enums\StatusRplMataKuliahEnum::cases())->mapWithKeys(fn($e) => [$e->value => $e->label()])->all()"
-                    />
+            {{-- Input Konversi Asesor --}}
+            <div class="bg-[#FAFBFC] rounded-xl border border-[#F0F2F5] p-4 flex flex-wrap items-end gap-4">
+                <div>
+                    <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-2">Konversi Nilai Asesor</label>
+                    <div class="flex gap-1.5">
+                        @foreach ($nilaiHurufOptions as $opt)
+                        <button type="button"
+                                wire:click="$set('nilaiTransfer.{{ $rplMk->id }}', '{{ $opt->value }}')"
+                                class="w-10 h-10 rounded-lg text-[12px] font-bold border transition-all
+                                       {{ ($nilaiTransfer[$rplMk->id] ?? '') === $opt->value
+                                           ? 'bg-primary border-primary text-white'
+                                           : 'bg-white border-[#D0D5DD] text-[#5a6a75] hover:border-primary hover:text-primary' }}">
+                            {{ $opt->value }}
+                        </button>
+                        @endforeach
+                    </div>
+                    @error("nilaiTransfer.{$rplMk->id}") <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
                 </div>
-                <div class="flex-1">
-                    <textarea wire:model="mkCatatan.{{ $rplMk->id }}"
-                              rows="2"
-                              placeholder="Catatan untuk peserta (opsional)..."
-                              class="w-full px-3 py-2 text-[12px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition resize-none"></textarea>
+                <div class="flex-1 min-w-[200px]">
+                    <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-2">Catatan Asesor (Opsional)</label>
+                    <input wire:model="mkCatatan.{{ $rplMk->id }}" type="text" placeholder="Catatan konversi nilai..."
+                           class="w-full h-[40px] px-3 text-[12px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-lg outline-none focus:border-primary focus:ring-1 focus:ring-primary/10" />
                 </div>
-                <button wire:click="saveMkStatus({{ $rplMk->id }})"
-                        class="shrink-0 h-[42px] px-4 bg-primary hover:bg-[#005f78] text-white text-[12px] font-semibold rounded-xl transition-colors">
-                    Simpan
+                <button wire:click="simpanNilaiTransfer({{ $rplMk->id }})"
+                        class="h-[40px] px-5 bg-primary hover:bg-[#005f78] text-white text-[12px] font-semibold rounded-lg transition-colors shrink-0">
+                    Simpan Nilai
                 </button>
             </div>
         </div>
+        @endif
+
+        {{-- Set status MK / Rekomendasi otomatis --}}
+        @if (in_array($permohonan->status, [\App\Enums\StatusPermohonanEnum::DalamReview, \App\Enums\StatusPermohonanEnum::Disetujui]))
+            @if (! ($rplMk->has_mk_sejenis && $rplMk->matkulLampau->isNotEmpty()))
+                {{-- Hanya tampilkan ringkasan rata-rata VATM jika bukan hybrid MK Lampau --}}
+                @php
+                    $hitungAction = app(\App\Actions\Asesor\HitungKeputusanMkAction::class);
+                    $rataRata     = $hitungAction->rataRata($rplMk->load('asesmenMandiri.nilaiAsesor'));
+                    $rekomendasi  = $rataRata !== null ? $hitungAction->execute($rplMk) : null;
+                @endphp
+                @if ($rataRata !== null)
+                <div class="mt-3 mb-1 flex items-center gap-3 px-1">
+                    <span class="text-[11px] text-[#8a9ba8]">
+                        Rata-rata nilai asesor:
+                        <span class="font-semibold text-[#1a2a35]">{{ $rataRata }}</span> / 5
+                    </span>
+                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full
+                        {{ $rekomendasi === \App\Enums\StatusRplMataKuliahEnum::Diakui
+                            ? 'bg-[#E6F4EA] text-[#1e7e3e]'
+                            : 'bg-[#FCE8E6] text-[#c62828]' }}">
+                        Rekomendasi: {{ $rekomendasi?->label() }}
+                    </span>
+                    <span class="text-[10px] text-[#b0bec5]">— (Status final dapat di-override di bawah jika perlu)</span>
+                </div>
+                @endif
+            @endif
+
+            {{-- Set Status Override Asesor --}}
+            <div class="border-t border-[#F0F2F5] pt-4 mt-4">
+                <div class="text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.8px] mb-3">Timpa Status / Catatan Khusus MK</div>
+                <div class="flex items-start gap-3">
+                    <div class="w-[200px] shrink-0">
+                        <x-form.select
+                            wire:model="mkStatus.{{ $rplMk->id }}"
+                            :options="collect(\App\Enums\StatusRplMataKuliahEnum::cases())->mapWithKeys(fn($e) => [$e->value => $e->label()])->all()"
+                        />
+                    </div>
+                    <div class="flex-1">
+                        <textarea wire:model="mkCatatan.{{ $rplMk->id }}"
+                                  rows="2"
+                                  placeholder="Tambahkan catatan jika diperlukan..."
+                                  class="w-full px-3 py-2 text-[12px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition resize-none"></textarea>
+                    </div>
+                    <button wire:click="saveMkStatus({{ $rplMk->id }})"
+                            class="shrink-0 h-[42px] px-4 bg-primary hover:bg-[#005f78] text-white text-[12px] font-semibold rounded-xl transition-colors">
+                        Simpan Status Override
+                    </button>
+                </div>
+            </div>
         @endif
 
     </div>

@@ -9,36 +9,36 @@ use App\Enums\StatusPermohonanEnum;
 new #[Layout('components.layouts.asesor')] class extends Component {
     public function with(): array
     {
-        $asesor   = auth()->user()->asesor;
-        $prodiIds = $asesor ? $asesor->programStudi->pluck('id') : collect();
+        $asesor = auth()->user()->asesor;
+        // Hanya tampilkan pengajuan yang telah di-assign ke asesor ini oleh Admin.
+        $baseQuery = $asesor ? $asesor->permohonan() : PermohonanRpl::query()->where('id', 0);
 
-        $pengajuanAktif = PermohonanRpl::whereIn('program_studi_id', $prodiIds)
+        $pengajuanAktif = (clone $baseQuery)
             ->whereNotIn('status', [
                 StatusPermohonanEnum::Draf,
                 StatusPermohonanEnum::Disetujui,
                 StatusPermohonanEnum::Ditolak,
             ])->count();
 
-        $butuhTindakan = PermohonanRpl::whereIn('program_studi_id', $prodiIds)
+        $butuhTindakan = (clone $baseQuery)
             ->whereIn('status', [StatusPermohonanEnum::Diproses, StatusPermohonanEnum::Verifikasi])
             ->count();
 
-        $dalamReview = PermohonanRpl::whereIn('program_studi_id', $prodiIds)
+        $dalamReview = (clone $baseQuery)
             ->where('status', StatusPermohonanEnum::DalamReview)
             ->count();
 
-        $disetujui = PermohonanRpl::whereIn('program_studi_id', $prodiIds)
+        $disetujui = (clone $baseQuery)
             ->where('status', StatusPermohonanEnum::Disetujui)
             ->count();
 
-        $ditolak = PermohonanRpl::whereIn('program_studi_id', $prodiIds)
+        $ditolak = (clone $baseQuery)
             ->where('status', StatusPermohonanEnum::Ditolak)
             ->count();
 
-        $pengajuanPerhatian = PermohonanRpl::with(['peserta.user', 'programStudi'])
-            ->whereIn('program_studi_id', $prodiIds)
+        $pengajuanPerhatian = (clone $baseQuery)
+            ->with(['peserta.user', 'programStudi'])
             ->whereIn('status', [
-                StatusPermohonanEnum::Diajukan,
                 StatusPermohonanEnum::Diproses,
                 StatusPermohonanEnum::Verifikasi,
                 StatusPermohonanEnum::DalamReview,

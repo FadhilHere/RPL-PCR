@@ -2,7 +2,9 @@
 
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use App\Models\MatkulLampau;
 use App\Models\PermohonanRpl;
+use App\Models\RplMataKuliah;
 use App\Models\AsesmenMandiri;
 use App\Models\DokumenBukti;
 use App\Enums\StatusPermohonanEnum;
@@ -18,6 +20,12 @@ new #[Layout('components.layouts.peserta')] class extends Component {
 
     // buktiTerpilih[pertanyaan_id] = [nama_dokumen, ...]
     public array $buktiTerpilih = [];
+
+    // hasMkSejenis[rpl_mk_id] = bool
+    public array $hasMkSejenis = [];
+
+    // matkulLampau[rpl_mk_id] = ['id'=>'', 'kode_mk'=>'', 'nama_mk'=>'', 'sks'=>'', 'nilai_huruf'=>'']
+    public array $matkulLampau = [];
 
     public function with(): array
     {
@@ -39,9 +47,28 @@ new #[Layout('components.layouts.peserta')] class extends Component {
             'rplMataKuliah.mataKuliah.cpmk',
             'rplMataKuliah.mataKuliah.pertanyaan',
             'rplMataKuliah.asesmenMandiri.pertanyaan',
+            'rplMataKuliah.matkulLampau',
         ]);
 
         foreach ($this->permohonan->rplMataKuliah as $rplMk) {
+            $this->hasMkSejenis[$rplMk->id] = $rplMk->has_mk_sejenis;
+
+            $lampau = $rplMk->matkulLampau->first();
+
+            $this->matkulLampau[$rplMk->id] = $lampau ? [
+                'id'          => $lampau->id,
+                'kode_mk'     => $lampau->kode_mk,
+                'nama_mk'     => $lampau->nama_mk,
+                'sks'         => (string) $lampau->sks,
+                'nilai_huruf' => $lampau->nilai_huruf?->value ?? '',
+            ] : [
+                'id'          => null,
+                'kode_mk'     => '',
+                'nama_mk'     => '',
+                'sks'         => '',
+                'nilai_huruf' => '',
+            ];
+
             foreach ($rplMk->asesmenMandiri as $asesmen) {
                 $this->pertanyaanRatings[$asesmen->pertanyaan_id] = $asesmen->penilaian_diri;
                 $this->buktiTerpilih[$asesmen->pertanyaan_id]     = $asesmen->referensi_berkas ?? [];
@@ -64,6 +91,62 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         if (! in_array($pertanyaanId, $this->asesmenIds)) {
             $this->asesmenIds[] = $pertanyaanId;
         }
+    }
+
+    public function toggleMkSejenis(int $rplMkId): void
+    {
+        $rplMk = RplMataKuliah::findOrFail($rplMkId);
+        abort_if($rplMk->permohonan_rpl_id !== $this->permohonan->id, 403);
+
+        $newValue = ! ($this->hasMkSejenis[$rplMkId] ?? false);
+        $this->hasMkSejenis[$rplMkId] = $newValue;
+
+        $rplMk->update(['has_mk_sejenis' => $newValue]);
+
+        if (! $newValue) {
+            // Hapus semua matkul lampau jika dimatikan
+            MatkulLampau::where('rpl_mata_kuliah_id', $rplMkId)->delete();
+            $this->matkulLampau[$rplMkId] = [
+                'id'          => null,
+                'kode_mk'     => '',
+                'nama_mk'     => '',
+                'sks'         => '',
+                'nilai_huruf' => '',
+            ];
+        }
+    }
+
+    public function saveRow(int $rplMkId): void
+    {
+        $row = $this->matkulLampau[$rplMkId] ?? null;
+        if (! $row) return;
+
+        $this->validate([
+            "matkulLampau.{$rplMkId}.kode_mk"     => 'required|string|max:20',
+            "matkulLampau.{$rplMkId}.nama_mk"     => 'required|string|max:255',
+            "matkulLampau.{$rplMkId}.sks"         => 'required|integer|min:1|max:20',
+            "matkulLampau.{$rplMkId}.nilai_huruf" => 'nullable|string|in:A,AB,B,BC,C,D,E',
+        ], [], [
+            "matkulLampau.{$rplMkId}.kode_mk"     => 'kode MK',
+            "matkulLampau.{$rplMkId}.nama_mk"     => 'nama MK',
+            "matkulLampau.{$rplMkId}.sks"         => 'SKS',
+            "matkulLampau.{$rplMkId}.nilai_huruf" => 'nilai huruf',
+        ]);
+
+        $nilaiHuruf = $row['nilai_huruf'] !== '' ? $row['nilai_huruf'] : null;
+
+        $ml = MatkulLampau::updateOrCreate(
+            ['id' => $row['id'] ?: 0],
+            [
+                'rpl_mata_kuliah_id' => $rplMkId,
+                'kode_mk'            => $row['kode_mk'],
+                'nama_mk'            => $row['nama_mk'],
+                'sks'                => (int) $row['sks'],
+                'nilai_huruf'        => $nilaiHuruf,
+            ]
+        );
+
+        $this->matkulLampau[$rplMkId]['id'] = $ml->id;
     }
 
     public function toggleBerkas(int $dokumenId, int $pertanyaanId, int $rplMkId): void
@@ -227,7 +310,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
             <span class="text-[11px] font-semibold text-primary bg-[#E8F4F8] px-[8px] py-[4px] rounded shrink-0">{{ $mk->nama }}</span>
             <div class="flex-1">
                 {{-- <div class="text-[13px] font-semibold text-[#1a2a35]">{{ $mk->sks }} SKS · Semester {{ $mk->semester }}</div> --}}
-                <div class="text-[11px] text-[#8a9ba8]">Keterampilan ini dapat diperoleh dari pengalaman kerja, pelatihan, sertifikasi, atau pendidikan formal. Dapat dibuktikan dengan transkrip, CV, sertifikat, surat keterangan, dll.</div>
+                <div class="text-[11px] text-[#8a9ba8] max-w-lg">Keterampilan ini dapat diperoleh dari pengalaman kerja, pelatihan, sertifikasi, atau pendidikan formal. Dapat dibuktikan dengan transkrip, CV, sertifikat, surat keterangan, dll.</div>
             </div>
             @php
                 $mkPtIds   = $mk->pertanyaan->pluck('id')->all();
@@ -238,6 +321,8 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                 {{ $mkDinilai }}/{{ $mkTotal }}
             </span>
         </div>
+
+
 
         <div class="px-5 py-4">
 
@@ -354,6 +439,70 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                 @endforeach
             @endif
 
+        </div>
+
+        {{-- Toggle has_mk_sejenis dan MK Lampau Input di bawah pertanyaan --}}
+        <div class="px-5 py-4 bg-[#FAFBFC] border-t border-[#F0F2F5]">
+            <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox"
+                       wire:click="toggleMkSejenis({{ $rplMk->id }})"
+                       @checked($hasMkSejenis[$rplMk->id] ?? false)
+                       class="w-4 h-4 rounded accent-primary">
+                <span class="text-[13px] text-[#1a2a35] font-semibold">Saya pernah mengambil Mata Kuliah sejenis di PT Asal</span>
+            </label>
+
+            @if ($hasMkSejenis[$rplMk->id] ?? false)
+            <div class="mt-4 space-y-3">
+                <div class="flex items-end gap-2">
+                    <div class="w-28">
+                        <label class="block text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] mb-1">Kode MK</label>
+                        <input wire:model="matkulLampau.{{ $rplMk->id }}.kode_mk"
+                               type="text" placeholder="mis. MK001"
+                               class="w-full h-[42px] px-3 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] mb-1">Nama MK</label>
+                        <input wire:model="matkulLampau.{{ $rplMk->id }}.nama_mk"
+                               type="text" placeholder="Nama mata kuliah"
+                               class="w-full h-[42px] px-3 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
+                    </div>
+                    <div class="w-20">
+                        <label class="block text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] mb-1">SKS</label>
+                        <input wire:model="matkulLampau.{{ $rplMk->id }}.sks"
+                               type="number" min="1" max="20" placeholder="3"
+                               class="w-full h-[42px] px-3 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
+                    </div>
+                    {{-- Nilai Huruf dari Transkrip --}}
+                    <div class="w-24">
+                        <label class="block text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] mb-1">Nilai</label>
+                        <x-form.select
+                            wire:model="matkulLampau.{{ $rplMk->id }}.nilai_huruf"
+                            :options="array_combine(
+                                array_column(App\Enums\NilaiHurufEnum::cases(), 'value'),
+                                array_column(App\Enums\NilaiHurufEnum::cases(), 'value')
+                            )"
+                            placeholder="—"
+                        />
+                    </div>
+                    <button wire:click="saveRow({{ $rplMk->id }})"
+                            class="h-[42px] px-4 bg-primary hover:bg-[#005f78] text-white text-[12px] font-semibold rounded-xl transition-colors shrink-0">
+                        Simpan
+                    </button>
+                </div>
+                @foreach ($errors->get("matkulLampau.{$rplMk->id}.kode_mk") as $err)
+                    <p class="text-[11px] text-[#c62828] mt-1">{{ $err }}</p>
+                @endforeach
+                @foreach ($errors->get("matkulLampau.{$rplMk->id}.nama_mk") as $err)
+                    <p class="text-[11px] text-[#c62828] mt-1">{{ $err }}</p>
+                @endforeach
+                @foreach ($errors->get("matkulLampau.{$rplMk->id}.sks") as $err)
+                    <p class="text-[11px] text-[#c62828] mt-1">{{ $err }}</p>
+                @endforeach
+                @foreach ($errors->get("matkulLampau.{$rplMk->id}.nilai_huruf") as $err)
+                    <p class="text-[11px] text-[#c62828] mt-1">{{ $err }}</p>
+                @endforeach
+            </div>
+            @endif
         </div>
 
     </div>

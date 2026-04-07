@@ -160,7 +160,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                                     wire:click="$set('nilaiTransfer.{{ $rplMk->id }}', '{{ $opt->value }}')"
                                     class="w-10 h-10 rounded-lg text-[12px] font-bold border transition-all
                                            {{ ($nilaiTransfer[$rplMk->id] ?? '') === $opt->value
-                                               ? ($opt->diakui() ? 'bg-[#1e7e3e] border-[#1e7e3e] text-white' : 'bg-[#c62828] border-[#c62828] text-white')
+                                               ? 'bg-primary border-primary text-white'
                                                : 'border-[#D0D5DD] text-[#5a6a75] hover:border-primary hover:text-primary' }}">
                                 {{ $opt->value }}
                             </button>
