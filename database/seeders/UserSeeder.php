@@ -15,9 +15,11 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         // Buat Spatie roles (jika belum ada)
-        $roleAdmin   = Role::firstOrCreate(['name' => 'admin',   'guard_name' => 'web']);
-        $roleAsesor  = Role::firstOrCreate(['name' => 'asesor',  'guard_name' => 'web']);
-        $rolePeserta = Role::firstOrCreate(['name' => 'peserta', 'guard_name' => 'web']);
+        $roleAdmin    = Role::firstOrCreate(['name' => 'admin',      'guard_name' => 'web']);
+        $roleAdminPmb = Role::firstOrCreate(['name' => 'admin_pmb',  'guard_name' => 'web']);
+        $roleAdminBaak = Role::firstOrCreate(['name' => 'admin_baak', 'guard_name' => 'web']);
+        $roleAsesor   = Role::firstOrCreate(['name' => 'asesor',     'guard_name' => 'web']);
+        $rolePeserta  = Role::firstOrCreate(['name' => 'peserta',    'guard_name' => 'web']);
 
         // --- Admin ---
         $adminUser = User::create([

@@ -9,6 +9,7 @@ use App\Enums\JenisDokumenEnum;
 use App\Enums\StatusPermohonanEnum;
 use App\Enums\StatusRplMataKuliahEnum;
 use App\Enums\StatusVerifikasiEnum;
+use App\Models\Asesor;
 use App\Models\DokumenBukti;
 use App\Models\MataKuliah;
 use App\Models\PermohonanRpl;
@@ -158,7 +159,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
 
     // ── Jadwal Verifikasi Bersama ──────────────────────────────────────────
 
-    public function simpanJadwal(string $jadwal, ?string $catatan, SimpanJadwalVerifikasiAction $action): void
+    public function simpanJadwal(string $jadwal, ?string $catatan, array $asesorIds, SimpanJadwalVerifikasiAction $action): void
     {
         $errors = validator(['jadwal' => $jadwal], ['jadwal' => 'required|date'])->errors()->toArray();
         if ($errors) {
@@ -166,9 +167,9 @@ new #[Layout('components.layouts.admin')] class extends Component {
             return;
         }
 
-        $action->execute($this->permohonan, $jadwal, $catatan, asesorId: null);
+        $action->execute($this->permohonan, $jadwal, $catatan, asesorIds: array_map('intval', $asesorIds));
 
-        $this->permohonan->load('verifikasiBersama');
+        $this->permohonan->load('verifikasiBersama', 'asesor.user');
         $this->dispatch('jadwal-saved');
     }
 
@@ -198,7 +199,15 @@ new #[Layout('components.layouts.admin')] class extends Component {
 
         $latestVb    = $this->permohonan->verifikasiBersama->sortByDesc('id')->first();
 
-        return compact('mkTersedia', 'prodiOptions', 'status', 'isDiajukan', 'isDisproses', 'isVerifikasi', 'canEditMk', 'isSelesai', 'latestVb');
+        $asesorOptions = Asesor::with('user')
+            ->whereHas('user', fn($q) => $q->where('aktif', true))
+            ->get()
+            ->mapWithKeys(fn($a) => [$a->id => $a->user->nama . ($a->bidang_keahlian ? ' — ' . $a->bidang_keahlian : '')])
+            ->toArray();
+
+        $this->permohonan->loadMissing('asesor.user');
+
+        return compact('mkTersedia', 'prodiOptions', 'status', 'isDiajukan', 'isDisproses', 'isVerifikasi', 'canEditMk', 'isSelesai', 'latestVb', 'asesorOptions');
     }
 }; ?>
 

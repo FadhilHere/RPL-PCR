@@ -21,13 +21,16 @@ class RplMataKuliah extends Model
         'nilai_akhir',
         'sks_diakui',
         'catatan_asesor',
+        'has_mk_sejenis',
+        'nilai_transfer',
     ];
 
     protected function casts(): array
     {
         return [
-            'status'    => StatusRplMataKuliahEnum::class,
-            'jenis_rpl' => JenisRplEnum::class,
+            'status'         => StatusRplMataKuliahEnum::class,
+            'jenis_rpl'      => JenisRplEnum::class,
+            'has_mk_sejenis' => 'boolean',
         ];
     }
 
@@ -53,5 +56,10 @@ class RplMataKuliah extends Model
     public function asesmenMandiri(): HasMany
     {
         return $this->hasMany(AsesmenMandiri::class);
+    }
+
+    public function matkulLampau(): HasMany
+    {
+        return $this->hasMany(MatkulLampau::class);
     }
 }

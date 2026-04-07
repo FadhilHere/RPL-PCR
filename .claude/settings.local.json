@@ -4,7 +4,8 @@
       "Bash(php artisan:*)",
       "Bash(xargs ls:*)",
       "Bash(grep -n \"referensi_berkas\" /d/Work/rpl_pcr/rpl-pcr/database/migrations/*.php)",
-      "Bash(grep -E \"\\\\.php$\")"
+      "Bash(grep -E \"\\\\.php$\")",
+      "Bash(composer require:*)"
     ]
   }
 }

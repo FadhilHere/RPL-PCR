@@ -4,6 +4,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
 use App\Models\PermohonanRpl;
+use App\Enums\JenisRplEnum;
 use App\Enums\StatusPermohonanEnum;
 
 new #[Layout('components.layouts.asesor')] class extends Component {
@@ -82,13 +83,22 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                         <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full {{ $p->status->badgeClass() }}">{{ $p->status->label() }}</span>
                     </td>
                     <td class="px-5 py-3.5 text-right">
+                        @php
+                            $isTransfer = $p->jenis_rpl === JenisRplEnum::RplI;
+                            $evalRoute  = $isTransfer
+                                ? route('asesor.evaluasi.transfer', $p->id)
+                                : route('asesor.evaluasi.index', $p->id);
+                        @endphp
+                        @if ($isTransfer)
+                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FFF3E0] text-[#b45309] mr-1.5">Transfer</span>
+                        @endif
                         @if ($p->status === StatusPermohonanEnum::DalamReview)
-                        <a href="{{ route('asesor.evaluasi.index', $p->id) }}"
+                        <a href="{{ $evalRoute }}"
                            class="text-[12px] font-semibold text-white bg-primary hover:bg-[#005f78] px-3.5 py-1.5 rounded-lg transition-colors no-underline">
-                            Evaluasi VATM →
+                            {{ $isTransfer ? 'Nilai Transfer →' : 'Evaluasi VATM →' }}
                         </a>
                         @else
-                        <a href="{{ route('asesor.evaluasi.index', $p->id) }}"
+                        <a href="{{ $evalRoute }}"
                            class="text-[12px] font-semibold text-primary hover:text-[#005f78] transition-colors no-underline">
                             Lihat Detail →
                         </a>

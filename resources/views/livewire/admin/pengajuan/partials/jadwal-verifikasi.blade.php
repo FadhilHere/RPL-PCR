@@ -4,6 +4,7 @@
          showJadwalForm: {{ (!$latestVb) && in_array($permohonan->status, [\App\Enums\StatusPermohonanEnum::Diproses, \App\Enums\StatusPermohonanEnum::Verifikasi]) ? 'true' : 'false' }},
          jadwal: '{{ $latestVb?->jadwal?->format('Y-m-d\TH:i') ?? '' }}',
          catatan: '{{ addslashes($latestVb?->catatan ?? '') }}',
+         selectedAsesorIds: [],
          jadwalErrors: {},
          showViewer: false, viewUrl: '', viewType: '', viewName: ''
      }"
@@ -51,6 +52,20 @@
 
         {{-- Form jadwal (diproses / verifikasi) --}}
         @if (in_array($permohonan->status, [\App\Enums\StatusPermohonanEnum::Diproses, \App\Enums\StatusPermohonanEnum::Verifikasi]))
+        {{-- Asesor yang sudah di-assign --}}
+        @if ($permohonan->asesor->isNotEmpty())
+        <div class="mb-3">
+            <div class="text-[11px] text-[#8a9ba8] mb-1">Asesor Ditugaskan</div>
+            <div class="flex flex-wrap gap-1.5">
+                @foreach ($permohonan->asesor as $a)
+                <span class="text-[11px] font-medium px-2.5 py-1 rounded-full bg-[#E8F0FE] text-[#1557b0]">
+                    {{ $a->user->nama }}
+                </span>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
         <div x-show="showJadwalForm" x-transition>
             <div class="grid grid-cols-2 gap-4 mb-3">
                 <div>
@@ -59,13 +74,30 @@
                     <p x-show="jadwalErrors.jadwal" x-text="jadwalErrors.jadwal?.[0]" class="text-[#c62828] text-[11px] mt-1"></p>
                 </div>
             </div>
+            {{-- Asesor multi-select --}}
+            <div class="mb-3">
+                <label class="block text-[11px] font-semibold text-[#5a6a75] mb-1.5">
+                    Asesor <span class="normal-case font-normal text-[#8a9ba8]">(bisa lebih dari satu)</span>
+                </label>
+                <div class="space-y-1.5 max-h-[120px] overflow-y-auto border border-[#E0E5EA] rounded-lg p-2.5 bg-[#FAFBFC]">
+                    @foreach ($asesorOptions as $aid => $aLabel)
+                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                        <input type="checkbox"
+                               x-model="selectedAsesorIds"
+                               value="{{ $aid }}"
+                               class="w-4 h-4 rounded border-[#D0D5DD] accent-primary cursor-pointer" />
+                        <span class="text-[12px] text-[#1a2a35]">{{ $aLabel }}</span>
+                    </label>
+                    @endforeach
+                </div>
+            </div>
             <div class="mb-3">
                 <label class="block text-[11px] font-semibold text-[#5a6a75] mb-1.5">Catatan (opsional)</label>
                 <textarea x-model="catatan" rows="2"
                           class="w-full px-3 py-2 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-lg outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition resize-none"
                           placeholder="Lokasi, link meeting, dll."></textarea>
             </div>
-            <button @click="$wire.simpanJadwal(jadwal, catatan)"
+            <button @click="$wire.simpanJadwal(jadwal, catatan, selectedAsesorIds)"
                     class="bg-primary hover:bg-[#005f78] text-white text-[12px] font-semibold px-4 py-2 rounded-lg transition-colors">
                 Simpan Jadwal
             </button>

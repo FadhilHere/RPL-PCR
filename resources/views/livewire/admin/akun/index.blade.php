@@ -41,7 +41,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
 
     public function save(string $role, TambahAdminAction $tambahAdmin, TambahAsesorAction $tambahAsesor, TambahPesertaAction $tambahPeserta): void
     {
-        $this->create->roleForm = in_array($role, ['asesor', 'peserta', 'admin']) ? $role : 'asesor';
+        $this->create->roleForm = in_array($role, ['asesor', 'peserta', 'admin', 'admin_pmb', 'admin_baak']) ? $role : 'asesor';
 
         $rules = [
             'create.nama'     => 'required|string|max:255',
@@ -70,6 +70,16 @@ new #[Layout('components.layouts.admin')] class extends Component {
         } elseif ($this->create->roleForm === 'admin') {
             $tambahAdmin->execute(
                 $this->create->nama, $this->create->email, $this->create->password,
+            );
+        } elseif ($this->create->roleForm === 'admin_pmb') {
+            $tambahAdmin->execute(
+                $this->create->nama, $this->create->email, $this->create->password,
+                \App\Enums\RoleEnum::AdminPmb,
+            );
+        } elseif ($this->create->roleForm === 'admin_baak') {
+            $tambahAdmin->execute(
+                $this->create->nama, $this->create->email, $this->create->password,
+                \App\Enums\RoleEnum::AdminBaak,
             );
         }
 
@@ -210,8 +220,8 @@ new #[Layout('components.layouts.admin')] class extends Component {
         </div>
         <x-form.select wire:model.live="filterRole"
             placeholder="Semua Role"
-            :options="['admin' => 'Admin', 'asesor' => 'Asesor', 'peserta' => 'Peserta']"
-            class="w-[160px]" />
+            :options="['admin' => 'Admin', 'admin_pmb' => 'Admin PMB', 'admin_baak' => 'Admin BAAK', 'asesor' => 'Asesor', 'peserta' => 'Peserta']"
+            class="w-[180px]" />
         <div class="flex-1"></div>
         <button wire:click="openForm"
                 class="bg-primary hover:bg-[#005f78] text-white text-[13px] font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
@@ -241,9 +251,11 @@ new #[Layout('components.layouts.admin')] class extends Component {
                 @php
                     $roleBadge = $user->role->badgeClass();
                     $info = match($user->role) {
-                        RoleEnum::Asesor  => $user->asesor?->bidang_keahlian ?? '—',
-                        RoleEnum::Peserta => $user->peserta?->institusi_asal ?? '—',
-                        default           => '—',
+                        RoleEnum::Asesor    => $user->asesor?->bidang_keahlian ?? '—',
+                        RoleEnum::Peserta   => $user->peserta?->institusi_asal ?? '—',
+                        RoleEnum::Admin     => 'Super Admin',
+                        RoleEnum::AdminPmb  => 'Kelola Akun & Verifikasi',
+                        RoleEnum::AdminBaak => 'Jadwal, Pleno & Resume',
                     };
                     $prodiList = $user->role === RoleEnum::Asesor
                         ? $user->asesor?->programStudi->pluck('kode')->implode(', ')
@@ -307,7 +319,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
                     {{-- Aksi --}}
                     <td class="px-4 py-3.5 text-center">
                         <div class="flex items-center justify-center gap-1.5">
-                            @if ($user->role === \App\Enums\RoleEnum::Peserta && $user->peserta)
+                            @if ($user->role === RoleEnum::Peserta && $user->peserta)
                             <a href="{{ route('admin.akun.profil', $user->peserta) }}"
                                title="Lihat profil peserta"
                                class="w-[32px] h-[32px] rounded-md border border-[#D0D5DD] text-[#5a6a75] hover:border-primary hover:text-primary hover:bg-[#E8F4F8] transition-colors flex items-center justify-center no-underline">

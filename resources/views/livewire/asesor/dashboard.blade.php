@@ -3,6 +3,7 @@
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use App\Models\PermohonanRpl;
+use App\Enums\JenisRplEnum;
 use App\Enums\StatusPermohonanEnum;
 
 new #[Layout('components.layouts.asesor')] class extends Component {
@@ -178,12 +179,12 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                                 {{ $p->created_at->format('d M Y') }}
                             </td>
                             <td class="px-3 py-3 pr-[18px]">
-                                <a href="{{ route('asesor.evaluasi.index', $p) }}"
+                                <a href="{{ $p->jenis_rpl === JenisRplEnum::RplI ? route('asesor.evaluasi.transfer', $p) : route('asesor.evaluasi.index', $p) }}"
                                    class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:text-white hover:bg-primary px-2.5 py-1.5 rounded-lg border border-primary/30 hover:border-primary transition-all no-underline">
                                     <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <polyline points="9 18 15 12 9 6"/>
                                     </svg>
-                                    Evaluasi
+                                    {{ $p->jenis_rpl === JenisRplEnum::RplI ? 'Nilai Transfer' : 'Evaluasi' }}
                                 </a>
                             </td>
                         </tr>

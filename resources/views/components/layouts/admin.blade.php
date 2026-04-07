@@ -53,61 +53,95 @@
             <div class="px-3 pt-5 pb-2 text-[10px] font-semibold text-white/35 uppercase tracking-[1px]">Menu</div>
 
             @php
-                $menus = [
+                use App\Enums\RoleEnum;
+                $authRole = auth()->user()->role;
+
+                $allMenus = [
                     [
                         'route' => 'admin.dashboard',
                         'label' => 'Dashboard',
                         'icon'  => '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>',
                         'match' => 'admin.dashboard',
+                        'roles' => [RoleEnum::Admin],
+                    ],
+                    [
+                        'route' => 'admin-pmb.dashboard',
+                        'label' => 'Dashboard',
+                        'icon'  => '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>',
+                        'match' => 'admin-pmb.dashboard',
+                        'roles' => [RoleEnum::AdminPmb],
+                    ],
+                    [
+                        'route' => 'admin-baak.dashboard',
+                        'label' => 'Dashboard',
+                        'icon'  => '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>',
+                        'match' => 'admin-baak.dashboard',
+                        'roles' => [RoleEnum::AdminBaak],
                     ],
                     [
                         'route' => 'admin.materi.index',
                         'label' => 'Materi Asesmen',
                         'icon'  => '<path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>',
                         'match' => 'admin.materi.*',
+                        'roles' => [RoleEnum::Admin],
                     ],
                     [
                         'route' => 'admin.pengajuan.index',
                         'label' => 'Semua Pengajuan',
                         'icon'  => '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
                         'match' => 'admin.pengajuan.*',
+                        'roles' => [RoleEnum::Admin, RoleEnum::AdminBaak],
                     ],
                     [
                         'route' => 'admin.jadwal.index',
                         'label' => 'Jadwal Verifikasi',
                         'icon'  => '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
                         'match' => 'admin.jadwal.*',
+                        'roles' => [RoleEnum::Admin, RoleEnum::AdminBaak],
                     ],
                     [
                         'route' => 'admin.pleno.index',
                         'label' => 'Resume',
                         'icon'  => '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>',
                         'match' => 'admin.pleno.*',
+                        'roles' => [RoleEnum::Admin, RoleEnum::AdminBaak],
                     ],
                     [
                         'route' => 'admin.akun.index',
                         'label' => 'Kelola Akun',
                         'icon'  => '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
                         'match' => 'admin.akun.*',
+                        'roles' => [RoleEnum::Admin, RoleEnum::AdminPmb],
                     ],
                     [
                         'route' => 'admin.prodi.index',
                         'label' => 'Program Studi',
                         'icon'  => '<path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>',
                         'match' => 'admin.prodi.*',
+                        'roles' => [RoleEnum::Admin],
                     ],
                     [
                         'route' => 'admin.tahun-ajaran.index',
                         'label' => 'Tahun Ajaran',
                         'icon'  => '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
                         'match' => 'admin.tahun-ajaran.*',
+                        'roles' => [RoleEnum::Admin],
+                    ],
+                    [
+                        'route' => 'admin.penandatangan.index',
+                        'label' => 'Penandatangan BA',
+                        'icon'  => '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/>',
+                        'match' => 'admin.penandatangan.*',
+                        'roles' => [RoleEnum::Admin],
                     ],
                 ];
+
+                $menus = array_filter($allMenus, fn($m) => in_array($authRole, $m['roles']));
             @endphp
 
             @foreach ($menus as $item)
                 @php $active = request()->routeIs($item['match']); @endphp
-                <a href="{{ $item['route'] ? route($item['route']) : '#' }}"
+                <a href="{{ route($item['route']) }}"
                    @click="open = false"
                    class="flex items-center gap-2.5 mx-2 px-3 py-[9px] rounded-md text-[13px] transition-all no-underline
                           {{ $active
@@ -135,7 +169,7 @@
                 </div>
                 <div class="flex-1 min-w-0">
                     <div class="text-white text-[12px] font-medium truncate">{{ $user->nama }}</div>
-                    <div class="text-white/50 text-[10px]">Administrator</div>
+                    <div class="text-white/50 text-[10px]">{{ auth()->user()->role->label() }}</div>
                 </div>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf

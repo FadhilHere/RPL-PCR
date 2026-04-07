@@ -70,7 +70,25 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
 <div>
 
-    {{-- Print button --}}
+    {{-- Export buttons --}}
+    <div class="flex justify-end gap-2 mb-4">
+        <a href="{{ route('export.resume.asesor.excel') }}"
+           class="flex items-center gap-1.5 h-[36px] px-3.5 text-[12px] font-semibold text-[#1e7e3e] border border-[#A8D5B5] rounded-lg hover:bg-[#E6F4EA] transition-colors no-underline">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Export Excel
+        </a>
+        <a href="{{ route('export.resume.asesor.pdf') }}"
+           class="flex items-center gap-1.5 h-[36px] px-3.5 text-[12px] font-semibold text-[#c62828] border border-[#F5C6C6] rounded-lg hover:bg-[#FCE8E6] transition-colors no-underline">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Export PDF
+        </a>
+    </div>
+
+    {{-- Print button (commented out) --}}
     <!-- <div class="flex justify-end mb-4 print:hidden">
         <button onclick="window.print()"
                 class="inline-flex items-center gap-2 h-[38px] px-4 bg-primary hover:bg-[#005f78] text-white text-[13px] font-semibold rounded-xl transition-colors">

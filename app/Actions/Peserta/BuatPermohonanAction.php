@@ -2,6 +2,7 @@
 
 namespace App\Actions\Peserta;
 
+use App\Enums\JenisRplEnum;
 use App\Enums\SemesterEnum;
 use App\Enums\StatusPermohonanEnum;
 use App\Models\PermohonanRpl;
@@ -15,6 +16,7 @@ class BuatPermohonanAction
         ProgramStudi $prodi,
         ?int $tahunAjaranId = null,
         ?SemesterEnum $semester = null,
+        JenisRplEnum $jenisRpl = JenisRplEnum::RplII,
     ): PermohonanRpl {
         $year  = now()->year;
         $count = PermohonanRpl::where('program_studi_id', $prodi->id)
@@ -31,6 +33,7 @@ class BuatPermohonanAction
             'tanggal_pengajuan' => now(),
             'tahun_ajaran_id'   => $tahunAjaranId,
             'semester'          => $semester,
+            'jenis_rpl'         => $jenisRpl,
         ]);
     }
 }

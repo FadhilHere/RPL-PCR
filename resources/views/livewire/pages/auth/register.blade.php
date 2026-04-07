@@ -25,7 +25,7 @@ new #[Layout('layouts.guest')] class extends Component {
         $this->validate([
             'foto'               => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'berkasCV'           => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'berkasTranskrip'    => $isDoPcr ? 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240' : 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'berkasTranskrip'    => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'berkasKeteranganMK' => $isDoPcr ? 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240' : 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ], [
             'berkasCV.required'           => 'CV wajib diunggah.',
@@ -63,7 +63,7 @@ new #[Layout('layouts.guest')] class extends Component {
             isDoPcr: $isDoPcr,
             semester: $this->form->semester,
             berkasCV: $this->berkasCV,
-            berkasTranskrip: $isDoPcr ? null : $this->berkasTranskrip,
+            berkasTranskrip: $this->berkasTranskrip,
             berkasKeteranganMK: $isDoPcr ? null : $this->berkasKeteranganMK,
         );
 
@@ -470,8 +470,8 @@ new #[Layout('layouts.guest')] class extends Component {
                             @error('berkasCV') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
                         </div>
 
-                        {{-- Transkrip (skip jika alumni PCR) --}}
-                        <div x-data x-show="!$wire.form.isDoPcr">
+                        {{-- Transkrip (wajib untuk semua, termasuk alumni PCR) --}}
+                        <div>
                             <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.8px] mb-1">
                                 Transkrip Nilai <span class="text-[#D2092F]">*</span>
                                 <span class="normal-case font-normal text-[#b0bec5]">PDF/JPG/PNG, maks 10 MB</span>

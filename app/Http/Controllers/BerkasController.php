@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Enums\RoleEnum;
+use App\Models\BeritaAcara;
 use App\Models\DokumenBukti;
 use App\Models\Peserta;
 use App\Models\VerifikasiBersama;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
 
 class BerkasController extends Controller
@@ -90,6 +92,33 @@ class BerkasController extends Controller
         $downloadName = 'Berkas_Verifikasi_' . $namaPeserta . ($ext ? '.' . $ext : '');
 
         return Storage::disk('local')->download($vb->berkas, $downloadName);
+    }
+
+    // ======================== Berita Acara PDF ========================
+
+    public function downloadBeritaAcara(BeritaAcara $beritaAcara)
+    {
+        $user = auth()->user();
+        $asesor = $user->asesor;
+
+        abort_if(
+            ! in_array($user->role, [RoleEnum::Admin, RoleEnum::AdminBaak])
+                && ($asesor === null || $beritaAcara->asesor_id !== $asesor->id),
+            403
+        );
+
+        $beritaAcara->loadMissing([
+            'asesor.user', 'tahunAjaran',
+            'penandatanganKiri', 'penandatanganKanan',
+            'peserta.peserta.user',
+        ]);
+
+        $pdf = Pdf::loadView('pdf.berita-acara', ['ba' => $beritaAcara])
+            ->setPaper('A4', 'portrait');
+
+        $namaFile = 'Berita_Acara_' . $beritaAcara->tanggal_asesmen->format('Y-m-d') . '.pdf';
+
+        return $pdf->download($namaFile);
     }
 
     // ======================== Foto Peserta ========================

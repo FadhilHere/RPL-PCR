@@ -3,6 +3,7 @@
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use App\Actions\Peserta\BuatPermohonanAction;
+use App\Enums\JenisRplEnum;
 use App\Enums\SemesterEnum;
 use App\Models\ProgramStudi;
 use App\Models\TahunAjaran;
@@ -11,6 +12,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
     public ?int    $selectedProdiId = null;
     public ?int    $tahunAjaranId   = null;
     public ?string $semester        = null;
+    public string  $jenisRpl        = 'rpl_ii';
 
     public function mount(): void
     {
@@ -30,6 +32,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         $this->validate([
             'selectedProdiId' => 'required|exists:program_studi,id',
             'semester'        => 'required|in:' . implode(',', array_column(SemesterEnum::cases(), 'value')),
+            'jenisRpl'        => 'required|in:rpl_i,rpl_ii',
         ], [
             'selectedProdiId.required' => 'Pilih program studi terlebih dahulu.',
             'semester.required'        => 'Pilih semester terlebih dahulu.',
@@ -38,10 +41,11 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         $peserta = auth()->user()->peserta;
         abort_if(! $peserta, 403);
 
-        $prodi   = ProgramStudi::findOrFail($this->selectedProdiId);
-        $semEnum = SemesterEnum::from($this->semester);
+        $prodi     = ProgramStudi::findOrFail($this->selectedProdiId);
+        $semEnum   = SemesterEnum::from($this->semester);
+        $jenisEnum = JenisRplEnum::from($this->jenisRpl);
 
-        $action->execute($peserta, $prodi, $this->tahunAjaranId, $semEnum);
+        $action->execute($peserta, $prodi, $this->tahunAjaranId, $semEnum, $jenisEnum);
 
         $this->redirect(route('peserta.pengajuan.index'), navigate: true);
     }
@@ -69,6 +73,53 @@ new #[Layout('components.layouts.peserta')] class extends Component {
             Setelah pengajuan dikirim, admin akan menentukan daftar mata kuliah yang akan Anda nilai.
             Anda akan diberi tahu saat proses pengisian asesmen mandiri sudah bisa dimulai.
         </p>
+    </div>
+
+    {{-- Jenis RPL --}}
+    <div class="bg-white rounded-xl border border-[#E5E8EC] p-5 mb-5">
+        <h3 class="text-[13px] font-semibold text-[#1a2a35] mb-1">Jenis Pengajuan RPL</h3>
+        <p class="text-[12px] text-[#8a9ba8] mb-4">Pilih jenis RPL sesuai dengan latar belakang Anda.</p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button type="button" wire:click="$set('jenisRpl', 'rpl_ii')"
+                    class="text-left p-4 rounded-xl border-2 transition-all
+                           {{ $jenisRpl === 'rpl_ii'
+                               ? 'border-primary bg-[#E8F4F8]'
+                               : 'border-[#E0E5EA] bg-white hover:border-primary/40' }}">
+                <div class="flex items-center gap-2 mb-1.5">
+                    <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0
+                                {{ $jenisRpl === 'rpl_ii' ? 'border-primary' : 'border-[#C0C8D0]' }}">
+                        @if ($jenisRpl === 'rpl_ii')
+                        <div class="w-2.5 h-2.5 rounded-full bg-primary"></div>
+                        @endif
+                    </div>
+                    <span class="text-[13px] font-semibold text-[#1a2a35]">RPL II — Pengakuan Pengalaman Kerja</span>
+                </div>
+                <p class="text-[11px] text-[#8a9ba8] leading-[1.5] pl-7">
+                    Untuk pengakuan kompetensi dari pengalaman kerja atau belajar non-formal/informal. Meliputi asesmen mandiri per sub CPMK.
+                </p>
+            </button>
+
+            <button type="button" wire:click="$set('jenisRpl', 'rpl_i')"
+                    class="text-left p-4 rounded-xl border-2 transition-all
+                           {{ $jenisRpl === 'rpl_i'
+                               ? 'border-primary bg-[#E8F4F8]'
+                               : 'border-[#E0E5EA] bg-white hover:border-primary/40' }}">
+                <div class="flex items-center gap-2 mb-1.5">
+                    <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0
+                                {{ $jenisRpl === 'rpl_i' ? 'border-primary' : 'border-[#C0C8D0]' }}">
+                        @if ($jenisRpl === 'rpl_i')
+                        <div class="w-2.5 h-2.5 rounded-full bg-primary"></div>
+                        @endif
+                    </div>
+                    <span class="text-[13px] font-semibold text-[#1a2a35]">RPL I — Transfer Kredit</span>
+                </div>
+                <p class="text-[11px] text-[#8a9ba8] leading-[1.5] pl-7">
+                    Untuk transfer kredit dari perguruan tinggi lain. Asesor menilai langsung dengan nilai huruf (A–C).
+                </p>
+            </button>
+        </div>
+        @error('jenisRpl') <p class="mt-1.5 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
     </div>
 
     {{-- Periode --}}

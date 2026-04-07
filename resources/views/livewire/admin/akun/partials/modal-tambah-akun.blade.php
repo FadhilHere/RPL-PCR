@@ -21,12 +21,22 @@
 
             <div>
                 <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-2">Role Akun</label>
-                <div class="flex gap-1.5 p-1 bg-[#F4F6F8] rounded-xl">
+                <div class="grid grid-cols-3 gap-1.5 p-1 bg-[#F4F6F8] rounded-xl mb-1.5">
                     @foreach (['asesor' => 'Asesor', 'peserta' => 'Peserta', 'admin' => 'Admin'] as $r => $label)
                     <button type="button"
                             @click="role = '{{ $r }}'"
                             :class="role === '{{ $r }}' ? 'bg-white text-primary shadow-sm' : 'text-[#8a9ba8] hover:text-[#5a6a75]'"
-                            class="flex-1 py-2 rounded-lg text-[12px] font-semibold transition-all">
+                            class="py-2 rounded-lg text-[12px] font-semibold transition-all">
+                        {{ $label }}
+                    </button>
+                    @endforeach
+                </div>
+                <div class="grid grid-cols-2 gap-1.5 p-1 bg-[#F4F6F8] rounded-xl">
+                    @foreach (['admin_pmb' => 'Admin PMB', 'admin_baak' => 'Admin BAAK'] as $r => $label)
+                    <button type="button"
+                            @click="role = '{{ $r }}'"
+                            :class="role === '{{ $r }}' ? 'bg-white text-primary shadow-sm' : 'text-[#8a9ba8] hover:text-[#5a6a75]'"
+                            class="py-2 rounded-lg text-[12px] font-semibold transition-all">
                         {{ $label }}
                     </button>
                     @endforeach
@@ -89,13 +99,19 @@
                 </div>
             </div>
 
-            <div x-show="role === 'admin'" style="display:none" class="pt-1 border-t border-[#F4F6F8]">
+            <div x-show="['admin','admin_pmb','admin_baak'].includes(role)" style="display:none" class="pt-1 border-t border-[#F4F6F8]">
                 <div class="flex items-start gap-3 bg-[#FFF8E1] rounded-xl px-4 py-3 mt-3">
                     <svg class="w-4 h-4 text-[#b45309] shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                     </svg>
-                    <p class="text-[12px] text-[#b45309] leading-[1.5]">
-                        Akun admin memiliki akses penuh ke seluruh fitur sistem. Pastikan hanya diberikan kepada pengelola yang berwenang.
+                    <p class="text-[12px] text-[#b45309] leading-[1.5]" x-show="role === 'admin'">
+                        Akun Admin memiliki akses penuh ke seluruh fitur sistem. Pastikan hanya diberikan kepada pengelola yang berwenang.
+                    </p>
+                    <p class="text-[12px] text-[#b45309] leading-[1.5]" x-show="role === 'admin_pmb'">
+                        Akun Admin PMB hanya dapat mengakses kelola akun dan verifikasi berkas peserta.
+                    </p>
+                    <p class="text-[12px] text-[#b45309] leading-[1.5]" x-show="role === 'admin_baak'">
+                        Akun Admin BAAK hanya dapat mengakses proses asesmen, atur jadwal, dan resume.
                     </p>
                 </div>
             </div>
@@ -112,7 +128,7 @@
                     wire:target="save"
                     class="flex-1 h-[42px] bg-primary hover:bg-[#005f78] text-white text-[13px] font-semibold rounded-xl transition-colors disabled:opacity-60">
                 <span wire:loading.remove wire:target="save"
-                      x-text="{ asesor: 'Buat Akun Asesor', peserta: 'Buat Akun Peserta', admin: 'Buat Akun Admin' }[role]">
+                      x-text="{ asesor: 'Buat Akun Asesor', peserta: 'Buat Akun Peserta', admin: 'Buat Akun Admin', admin_pmb: 'Buat Akun Admin PMB', admin_baak: 'Buat Akun Admin BAAK' }[role]">
                 </span>
                 <span wire:loading wire:target="save">Menyimpan...</span>
             </button>

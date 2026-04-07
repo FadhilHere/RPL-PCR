@@ -5,6 +5,7 @@ use Livewire\Volt\Component;
 use Livewire\WithPagination;
 use App\Actions\Asesor\SimpanJadwalVerifikasiAction;
 use App\Enums\StatusVerifikasiEnum;
+use App\Models\Asesor;
 use App\Models\PermohonanRpl;
 use App\Models\ProgramStudi;
 use App\Models\VerifikasiBersama;
@@ -18,6 +19,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
     public string $filterTanggalSampai = '';
     public ?int $formPermohonanId   = null;
     public string $searchPermohonan = '';
+    public array $formAsesorIds     = [];
 
     public function updatedFilterProdi(): void  { $this->resetPage(); }
     public function updatedFilterStatus(): void { $this->resetPage(); }
@@ -46,8 +48,10 @@ new #[Layout('components.layouts.admin')] class extends Component {
         } else {
             abort_if(empty($permohonanId), 422);
             $permohonan = PermohonanRpl::findOrFail((int) $permohonanId);
-            $action->execute($permohonan, $tanggal, $catatan ?: null, asesorId: null);
+            $action->execute($permohonan, $tanggal, $catatan ?: null, asesorIds: array_map('intval', $this->formAsesorIds));
         }
+
+        $this->formAsesorIds = [];
     }
 
     public function hapusJadwal(int $vbId): void
@@ -57,7 +61,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
 
     public function with(): array
     {
-        $jadwalList = VerifikasiBersama::with(['permohonanRpl.peserta.user', 'permohonanRpl.programStudi', 'asesor.user'])
+        $jadwalList = VerifikasiBersama::with(['permohonanRpl.peserta.user', 'permohonanRpl.programStudi', 'permohonanRpl.asesor.user', 'asesor.user'])
             ->when($this->filterProdi, fn($q) =>
                 $q->whereHas('permohonanRpl', fn($q2) => $q2->where('program_studi_id', $this->filterProdi))
             )
@@ -83,7 +87,13 @@ new #[Layout('components.layouts.admin')] class extends Component {
             ->mapWithKeys(fn($p) => [$p->id => $p->nomor_permohonan . ' — ' . ($p->peserta->user->nama ?? '?')])
             ->toArray();
 
-        return compact('jadwalList', 'prodiOptions', 'statusOptions', 'permohonanOptions');
+        $asesorOptions = Asesor::with('user')
+            ->whereHas('user', fn($q) => $q->where('aktif', true))
+            ->get()
+            ->mapWithKeys(fn($a) => [$a->id => $a->user->nama . ($a->bidang_keahlian ? ' — ' . $a->bidang_keahlian : '')])
+            ->toArray();
+
+        return compact('jadwalList', 'prodiOptions', 'statusOptions', 'permohonanOptions', 'asesorOptions');
     }
 }; ?>
 
@@ -177,7 +187,14 @@ new #[Layout('components.layouts.admin')] class extends Component {
                         <div class="text-[11px] text-[#8a9ba8]">{{ $vb->permohonanRpl?->nomor_permohonan ?? '—' }}</div>
                     </td>
                     <td class="px-4 py-3.5 text-[12px] text-[#5a6a75]">{{ $vb->permohonanRpl?->programStudi?->nama ?? '—' }}</td>
-                    <td class="px-4 py-3.5 text-[12px] text-[#5a6a75]">{{ $vb->asesor?->user?->nama ?? '—' }}</td>
+                    <td class="px-4 py-3.5 text-[12px] text-[#5a6a75]">
+                        @php $asesorList = $vb->permohonanRpl?->asesor; @endphp
+                        @if ($asesorList && $asesorList->isNotEmpty())
+                            {{ $asesorList->pluck('user.nama')->filter()->implode(', ') }}
+                        @else
+                            {{ $vb->asesor?->user?->nama ?? '—' }}
+                        @endif
+                    </td>
                     <td class="px-4 py-3.5 text-center">
                         @if ($vb->status)
                         <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $vb->status->badgeClass() }}">
@@ -286,6 +303,24 @@ new #[Layout('components.layouts.admin')] class extends Component {
                 <div>
                     <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">Tanggal & Waktu</label>
                     <x-form.date-picker x-model="form.tanggal" placeholder="Pilih tanggal & waktu..." :enable-time="true" />
+                </div>
+
+                {{-- Asesor (multi-select, hanya saat tambah baru) --}}
+                <div x-show="!form.editId">
+                    <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">
+                        Asesor <span class="normal-case font-normal text-[#b0bec5]">(bisa lebih dari satu)</span>
+                    </label>
+                    <div class="space-y-1.5 max-h-[140px] overflow-y-auto border border-[#E0E5EA] rounded-xl p-3 bg-[#FAFBFC]">
+                        @foreach ($asesorOptions as $asesorId => $asesorLabel)
+                        <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                            <input type="checkbox"
+                                   wire:model="formAsesorIds"
+                                   value="{{ $asesorId }}"
+                                   class="w-4 h-4 rounded border-[#D0D5DD] accent-primary cursor-pointer" />
+                            <span class="text-[12px] text-[#1a2a35]">{{ $asesorLabel }}</span>
+                        </label>
+                        @endforeach
+                    </div>
                 </div>
 
                 <div>

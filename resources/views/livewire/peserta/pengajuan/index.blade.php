@@ -3,6 +3,7 @@
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use App\Models\PermohonanRpl;
+use App\Enums\JenisRplEnum;
 use App\Enums\StatusPermohonanEnum;
 use App\Enums\StatusRplMataKuliahEnum;
 use App\Enums\StatusVerifikasiEnum;
@@ -95,14 +96,18 @@ new #[Layout('components.layouts.peserta')] class extends Component {
             <div class="text-[11px] text-[#8a9ba8] shrink-0">
                 {{ $p->tanggal_pengajuan?->format('d M Y') ?? $p->created_at->format('d M Y') }}
             </div>
+            @php $isTransfer = $p->jenis_rpl === JenisRplEnum::RplI; @endphp
             <div class="flex items-center gap-2 shrink-0">
+                @if ($isTransfer)
+                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FFF3E0] text-[#b45309]">Transfer</span>
+                @endif
                 @if ($isDisproses)
-                    <a href="{{ route('peserta.pengajuan.asesmen', $p->id) }}"
+                    <a href="{{ $isTransfer ? route('peserta.pengajuan.transfer', $p->id) : route('peserta.pengajuan.asesmen', $p->id) }}"
                        class="text-[12px] text-primary font-semibold hover:underline no-underline">
-                        Isi Asesmen →
+                        {{ $isTransfer ? 'Input MK Asal →' : 'Isi Asesmen →' }}
                     </a>
                 @else
-                    <a href="{{ route('peserta.pengajuan.asesmen', $p->id) }}"
+                    <a href="{{ $isTransfer ? route('peserta.pengajuan.transfer', $p->id) : route('peserta.pengajuan.asesmen', $p->id) }}"
                        class="text-[12px] text-primary font-medium hover:underline no-underline">
                         Lihat Detail →
                     </a>

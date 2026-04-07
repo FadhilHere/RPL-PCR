@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Asesor extends Model
 {
@@ -40,5 +41,15 @@ class Asesor extends Model
     public function programStudi(): BelongsToMany
     {
         return $this->belongsToMany(ProgramStudi::class, 'asesor_program_studi');
+    }
+
+    public function permohonan(): BelongsToMany
+    {
+        return $this->belongsToMany(PermohonanRpl::class, 'asesor_permohonan');
+    }
+
+    public function beritaAcara(): HasMany
+    {
+        return $this->hasMany(BeritaAcara::class);
     }
 }

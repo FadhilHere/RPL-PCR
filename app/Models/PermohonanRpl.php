@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Enums\JenisRplEnum;
 use App\Enums\SemesterEnum;
 use App\Enums\StatusPermohonanEnum;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -25,6 +27,7 @@ class PermohonanRpl extends Model
         'admin_verifikator_id',
         'tahun_ajaran_id',
         'semester',
+        'jenis_rpl',
     ];
 
     protected function casts(): array
@@ -34,6 +37,7 @@ class PermohonanRpl extends Model
             'tanggal_verifikasi_pembayaran' => 'datetime',
             'status'                        => StatusPermohonanEnum::class,
             'semester'                      => SemesterEnum::class,
+            'jenis_rpl'                    => JenisRplEnum::class,
             'pembayaran_terverifikasi'      => 'boolean',
         ];
     }
@@ -77,5 +81,12 @@ class PermohonanRpl extends Model
     public function skRekognisi(): HasOne
     {
         return $this->hasOne(SkRekognisi::class);
+    }
+
+    // --- Belongs To Many ---
+
+    public function asesor(): BelongsToMany
+    {
+        return $this->belongsToMany(Asesor::class, 'asesor_permohonan');
     }
 }

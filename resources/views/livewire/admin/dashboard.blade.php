@@ -12,6 +12,18 @@ new #[Layout('components.layouts.admin')] class extends Component {
     {
         $totalPengajuan = PermohonanRpl::count();
         $menunggu       = PermohonanRpl::where('status', StatusPermohonanEnum::Diajukan)->count();
+
+        $belumVerifikasiPembayaran = PermohonanRpl::where('pembayaran_terverifikasi', false)
+            ->whereIn('status', [
+                StatusPermohonanEnum::Diajukan,
+                StatusPermohonanEnum::Diproses,
+                StatusPermohonanEnum::Verifikasi,
+                StatusPermohonanEnum::DalamReview,
+            ])->count();
+
+        $belumDijadwalkan = PermohonanRpl::where('status', StatusPermohonanEnum::Diproses)
+            ->whereDoesntHave('verifikasiBersama')
+            ->count();
         $aktif          = PermohonanRpl::whereIn('status', [
             StatusPermohonanEnum::Diproses,
             StatusPermohonanEnum::Verifikasi,
@@ -37,7 +49,8 @@ new #[Layout('components.layouts.admin')] class extends Component {
 
         return compact(
             'totalPengajuan', 'menunggu', 'aktif', 'selesai',
-            'distribusi', 'pengajuanTerbaru', 'totalAsesor', 'totalPeserta'
+            'distribusi', 'pengajuanTerbaru', 'totalAsesor', 'totalPeserta',
+            'belumVerifikasiPembayaran', 'belumDijadwalkan'
         );
     }
 }; ?>
@@ -46,6 +59,36 @@ new #[Layout('components.layouts.admin')] class extends Component {
 <x-slot:subtitle>{{ \Carbon\Carbon::now()->locale('id')->translatedFormat('l\, d F Y') }}</x-slot:subtitle>
 
 <div>
+
+    {{-- ===== WARNING CARDS ===== --}}
+    @if ($belumVerifikasiPembayaran > 0 || $belumDijadwalkan > 0)
+    <div class="flex flex-col gap-2 mb-4">
+        @if ($belumVerifikasiPembayaran > 0)
+        <div class="flex items-center gap-3 bg-[#FFF8E1] border border-[#FCD34D] rounded-[10px] px-5 py-3">
+            <svg class="w-4 h-4 text-[#b45309] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span class="text-[12px] font-medium text-[#92400e]">
+                <span class="font-bold">{{ $belumVerifikasiPembayaran }}</span> pengajuan belum diverifikasi pembayarannya
+            </span>
+            <a href="{{ route('admin.akun.index') }}" class="ml-auto text-[11px] font-semibold text-[#b45309] hover:underline no-underline shrink-0">Kelola Akun &rarr;</a>
+        </div>
+        @endif
+
+        @if ($belumDijadwalkan > 0)
+        <div class="flex items-center gap-3 bg-[#FFF8E1] border border-[#FCD34D] rounded-[10px] px-5 py-3">
+            <svg class="w-4 h-4 text-[#b45309] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            <span class="text-[12px] font-medium text-[#92400e]">
+                <span class="font-bold">{{ $belumDijadwalkan }}</span> pengajuan belum dijadwalkan verifikasinya
+            </span>
+            <a href="{{ route('admin.jadwal.index') }}" class="ml-auto text-[11px] font-semibold text-[#b45309] hover:underline no-underline shrink-0">Atur Jadwal &rarr;</a>
+        </div>
+        @endif
+    </div>
+    @endif
 
     {{-- ===== STAT CARDS ROW 1 ===== --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
