@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\NilaiHurufEnum;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -14,7 +15,15 @@ class MatkulLampau extends Model
         'kode_mk',
         'nama_mk',
         'sks',
+        'nilai_huruf',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'nilai_huruf' => NilaiHurufEnum::class,
+        ];
+    }
 
     public function rplMataKuliah(): BelongsTo
     {

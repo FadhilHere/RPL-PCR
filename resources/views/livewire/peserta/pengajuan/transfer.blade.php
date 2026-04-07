@@ -13,7 +13,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
     // hasMkSejenis[rpl_mk_id] = bool
     public array $hasMkSejenis = [];
 
-    // matkulLampau[rpl_mk_id] = [['kode_mk'=>'', 'nama_mk'=>'', 'sks'=>''], ...]
+    // matkulLampau[rpl_mk_id] = ['id'=>'', 'kode_mk'=>'', 'nama_mk'=>'', 'sks'=>'', 'nilai_huruf'=>'']
     public array $matkulLampau = [];
 
     public function mount(PermohonanRpl $permohonan): void
@@ -23,21 +23,28 @@ new #[Layout('components.layouts.peserta')] class extends Component {
 
         $this->permohonan = $permohonan->load([
             'programStudi',
-            'rplMataKuliah.mataKuliah',
+            'rplMataKuliah.mataKuliah.cpmk',
             'rplMataKuliah.matkulLampau',
         ]);
 
         foreach ($this->permohonan->rplMataKuliah as $rplMk) {
             $this->hasMkSejenis[$rplMk->id] = $rplMk->has_mk_sejenis;
 
-            $lampau = $rplMk->matkulLampau->map(fn($ml) => [
-                'id'      => $ml->id,
-                'kode_mk' => $ml->kode_mk,
-                'nama_mk' => $ml->nama_mk,
-                'sks'     => (string) $ml->sks,
-            ])->toArray();
+            $lampau = $rplMk->matkulLampau->first();
 
-            $this->matkulLampau[$rplMk->id] = $lampau ?: [['id' => null, 'kode_mk' => '', 'nama_mk' => '', 'sks' => '']];
+            $this->matkulLampau[$rplMk->id] = $lampau ? [
+                'id'          => $lampau->id,
+                'kode_mk'     => $lampau->kode_mk,
+                'nama_mk'     => $lampau->nama_mk,
+                'sks'         => (string) $lampau->sks,
+                'nilai_huruf' => $lampau->nilai_huruf?->value ?? '',
+            ] : [
+                'id'          => null,
+                'kode_mk'     => '',
+                'nama_mk'     => '',
+                'sks'         => '',
+                'nilai_huruf' => '',
+            ];
         }
     }
 
@@ -54,42 +61,34 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         if (! $newValue) {
             // Hapus semua matkul lampau jika dimatikan
             MatkulLampau::where('rpl_mata_kuliah_id', $rplMkId)->delete();
-            $this->matkulLampau[$rplMkId] = [['id' => null, 'kode_mk' => '', 'nama_mk' => '', 'sks' => '']];
+            $this->matkulLampau[$rplMkId] = [
+                'id'          => null,
+                'kode_mk'     => '',
+                'nama_mk'     => '',
+                'sks'         => '',
+                'nilai_huruf' => '',
+            ];
         }
     }
 
-    public function addRow(int $rplMkId): void
+    public function saveRow(int $rplMkId): void
     {
-        $this->matkulLampau[$rplMkId][] = ['id' => null, 'kode_mk' => '', 'nama_mk' => '', 'sks' => ''];
-    }
-
-    public function removeRow(int $rplMkId, int $index): void
-    {
-        $row = $this->matkulLampau[$rplMkId][$index] ?? null;
-        if ($row && $row['id']) {
-            MatkulLampau::destroy($row['id']);
-        }
-        array_splice($this->matkulLampau[$rplMkId], $index, 1);
-
-        if (empty($this->matkulLampau[$rplMkId])) {
-            $this->matkulLampau[$rplMkId] = [['id' => null, 'kode_mk' => '', 'nama_mk' => '', 'sks' => '']];
-        }
-    }
-
-    public function saveRow(int $rplMkId, int $index): void
-    {
-        $row = $this->matkulLampau[$rplMkId][$index] ?? null;
+        $row = $this->matkulLampau[$rplMkId] ?? null;
         if (! $row) return;
 
         $this->validate([
-            "matkulLampau.{$rplMkId}.{$index}.kode_mk" => 'required|string|max:20',
-            "matkulLampau.{$rplMkId}.{$index}.nama_mk" => 'required|string|max:255',
-            "matkulLampau.{$rplMkId}.{$index}.sks"     => 'required|integer|min:1|max:20',
+            "matkulLampau.{$rplMkId}.kode_mk"     => 'required|string|max:20',
+            "matkulLampau.{$rplMkId}.nama_mk"     => 'required|string|max:255',
+            "matkulLampau.{$rplMkId}.sks"         => 'required|integer|min:1|max:20',
+            "matkulLampau.{$rplMkId}.nilai_huruf" => 'nullable|string|in:A,AB,B,BC,C,D,E',
         ], [], [
-            "matkulLampau.{$rplMkId}.{$index}.kode_mk" => 'kode MK',
-            "matkulLampau.{$rplMkId}.{$index}.nama_mk" => 'nama MK',
-            "matkulLampau.{$rplMkId}.{$index}.sks"     => 'SKS',
+            "matkulLampau.{$rplMkId}.kode_mk"     => 'kode MK',
+            "matkulLampau.{$rplMkId}.nama_mk"     => 'nama MK',
+            "matkulLampau.{$rplMkId}.sks"         => 'SKS',
+            "matkulLampau.{$rplMkId}.nilai_huruf" => 'nilai huruf',
         ]);
+
+        $nilaiHuruf = $row['nilai_huruf'] !== '' ? $row['nilai_huruf'] : null;
 
         $ml = MatkulLampau::updateOrCreate(
             ['id' => $row['id'] ?: 0],
@@ -98,10 +97,11 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                 'kode_mk'            => $row['kode_mk'],
                 'nama_mk'            => $row['nama_mk'],
                 'sks'                => (int) $row['sks'],
+                'nilai_huruf'        => $nilaiHuruf,
             ]
         );
 
-        $this->matkulLampau[$rplMkId][$index]['id'] = $ml->id;
+        $this->matkulLampau[$rplMkId]['id'] = $ml->id;
     }
 
     public function with(): array
@@ -150,58 +150,75 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                 </label>
             </div>
 
+            {{-- CPMK --}}
+            @if ($rplMk->mataKuliah->cpmk->isNotEmpty())
+            <div class="px-5 pt-4 pb-3 bg-[#FAFBFC] border-b border-[#F0F2F5]">
+                <div class="text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.8px] mb-2">Capaian Pembelajaran (CPMK)</div>
+                <div class="space-y-2">
+                    @foreach ($rplMk->mataKuliah->cpmk as $cpmk)
+                    <div class="flex items-start gap-2" wire:key="cpmk-{{ $cpmk->id }}">
+                        <span class="w-4 h-4 rounded-full bg-[#E8F4F8] text-primary text-[9px] font-semibold flex items-center justify-center shrink-0 mt-0.5">{{ $cpmk->urutan }}</span>
+                        <span class="text-[12px] text-[#5a6a75] leading-[1.5]">{{ $cpmk->deskripsi }}</span>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
             {{-- MK Lampau Input (hanya jika has_mk_sejenis) --}}
             @if ($hasMkSejenis[$rplMk->id] ?? false)
             <div class="p-5">
                 <p class="text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-3">Mata Kuliah di PT Asal</p>
                 <div class="space-y-3">
-                    @foreach ($matkulLampau[$rplMk->id] ?? [] as $i => $row)
-                    <div class="flex items-end gap-2" wire:key="row-{{ $rplMk->id }}-{{ $i }}">
+                    <div class="flex items-end gap-2">
                         <div class="w-28">
                             <label class="block text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] mb-1">Kode MK</label>
-                            <input wire:model="matkulLampau.{{ $rplMk->id }}.{{ $i }}.kode_mk"
+                            <input wire:model="matkulLampau.{{ $rplMk->id }}.kode_mk"
                                    type="text" placeholder="mis. MK001"
-                                   class="w-full h-[38px] px-2.5 text-[12px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-lg outline-none focus:border-primary focus:ring-1 focus:ring-primary/10" />
+                                   class="w-full h-[42px] px-3 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
                         </div>
                         <div class="flex-1">
                             <label class="block text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] mb-1">Nama MK</label>
-                            <input wire:model="matkulLampau.{{ $rplMk->id }}.{{ $i }}.nama_mk"
+                            <input wire:model="matkulLampau.{{ $rplMk->id }}.nama_mk"
                                    type="text" placeholder="Nama mata kuliah"
-                                   class="w-full h-[38px] px-2.5 text-[12px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-lg outline-none focus:border-primary focus:ring-1 focus:ring-primary/10" />
+                                   class="w-full h-[42px] px-3 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
                         </div>
-                        <div class="w-16">
+                        <div class="w-20">
                             <label class="block text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] mb-1">SKS</label>
-                            <input wire:model="matkulLampau.{{ $rplMk->id }}.{{ $i }}.sks"
+                            <input wire:model="matkulLampau.{{ $rplMk->id }}.sks"
                                    type="number" min="1" max="20" placeholder="3"
-                                   class="w-full h-[38px] px-2.5 text-[12px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-lg outline-none focus:border-primary focus:ring-1 focus:ring-primary/10" />
+                                   class="w-full h-[42px] px-3 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
                         </div>
-                        <button wire:click="saveRow({{ $rplMk->id }}, {{ $i }})"
-                                class="h-[38px] px-3 bg-primary hover:bg-[#005f78] text-white text-[11px] font-semibold rounded-lg transition-colors shrink-0">
+                        {{-- Nilai Huruf dari Transkrip --}}
+                        <div class="w-24">
+                            <label class="block text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] mb-1">Nilai</label>
+                            <x-form.select
+                                wire:model="matkulLampau.{{ $rplMk->id }}.nilai_huruf"
+                                :options="array_combine(
+                                    array_column(App\Enums\NilaiHurufEnum::cases(), 'value'),
+                                    array_column(App\Enums\NilaiHurufEnum::cases(), 'value')
+                                )"
+                                placeholder="—"
+                            />
+                        </div>
+                        <button wire:click="saveRow({{ $rplMk->id }})"
+                                class="h-[42px] px-4 bg-primary hover:bg-[#005f78] text-white text-[12px] font-semibold rounded-xl transition-colors shrink-0">
                             Simpan
                         </button>
-                        @if (count($matkulLampau[$rplMk->id] ?? []) > 1)
-                        <button wire:click="removeRow({{ $rplMk->id }}, {{ $i }})"
-                                class="h-[38px] w-[38px] flex items-center justify-center border border-[#D0D5DD] text-[#c62828] hover:bg-[#FCE8E6] rounded-lg transition-colors shrink-0">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        </button>
-                        @endif
                     </div>
-                    @foreach ($errors->get("matkulLampau.{$rplMk->id}.*.kode_mk") as $err)
+                    @foreach ($errors->get("matkulLampau.{$rplMk->id}.kode_mk") as $err)
                         <p class="text-[11px] text-[#c62828]">{{ $err }}</p>
                     @endforeach
-                    @foreach ($errors->get("matkulLampau.{$rplMk->id}.*.nama_mk") as $err)
+                    @foreach ($errors->get("matkulLampau.{$rplMk->id}.nama_mk") as $err)
                         <p class="text-[11px] text-[#c62828]">{{ $err }}</p>
                     @endforeach
-                    @foreach ($errors->get("matkulLampau.{$rplMk->id}.*.sks") as $err)
+                    @foreach ($errors->get("matkulLampau.{$rplMk->id}.sks") as $err)
                         <p class="text-[11px] text-[#c62828]">{{ $err }}</p>
                     @endforeach
+                    @foreach ($errors->get("matkulLampau.{$rplMk->id}.nilai_huruf") as $err)
+                        <p class="text-[11px] text-[#c62828]">{{ $err }}</p>
                     @endforeach
                 </div>
-                <button wire:click="addRow({{ $rplMk->id }})"
-                        class="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:text-[#005f78] transition-colors">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    Tambah MK Asal
-                </button>
             </div>
             @else
             <div class="px-5 py-3 text-[12px] text-[#8a9ba8] italic">
