@@ -19,9 +19,15 @@ class BuatPermohonanAction
         JenisRplEnum $jenisRpl = JenisRplEnum::RplII,
     ): PermohonanRpl {
         $year  = now()->year;
-        $count = PermohonanRpl::where('program_studi_id', $prodi->id)
+        $lastPermohonan = PermohonanRpl::where('program_studi_id', $prodi->id)
             ->whereYear('created_at', $year)
-            ->count() + 1;
+            ->orderBy('id', 'desc')
+            ->first();
+
+        $count = 1;
+        if ($lastPermohonan && preg_match('/-(\d+)$/', $lastPermohonan->nomor_permohonan, $matches)) {
+            $count = (int) $matches[1] + 1;
+        }
 
         $nomor = sprintf('RPL-%d-%s-%04d', $year, $prodi->kode, $count);
 

@@ -160,6 +160,25 @@
                 </table>
             </div>
 
+            {{-- Ringkasan MK Tujuan (PCR) --}}
+            <div class="bg-[#E8F4F8] rounded-xl border border-[#BDE0EB] p-4 mb-4 flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm">
+                    <svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5v-15A2.5 2.5 0 016.5 2H20v20H6.5a2.5 2.5 0 01-2.5-2.5z"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[10px] font-semibold text-primary uppercase tracking-[0.8px] mb-1">Mata Kuliah Tujuan (PCR)</div>
+                    <div class="flex items-center gap-2 text-[13px]">
+                        <span class="font-bold text-[#1a2a35]">{{ $mk->kode }}</span>
+                        <span class="text-[#8a9ba8]">&mdash;</span>
+                        <span class="font-semibold text-[#1a2a35]">{{ $mk->nama }}</span>
+                        <span class="px-2 py-0.5 rounded-md bg-white text-primary text-[11px] font-bold border border-[#BDE0EB] ml-2">Semester {{ $mk->semester }}</span>
+                        <span class="px-2 py-0.5 rounded-md bg-white text-primary text-[11px] font-bold border border-[#BDE0EB]">{{ $mk->sks }} SKS</span>
+                    </div>
+                </div>
+            </div>
+
             {{-- Input Konversi Asesor --}}
             <div class="bg-[#FAFBFC] rounded-xl border border-[#F0F2F5] p-4 flex flex-wrap items-end gap-4">
                 <div>

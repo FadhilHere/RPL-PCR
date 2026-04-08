@@ -443,13 +443,25 @@ new #[Layout('components.layouts.peserta')] class extends Component {
 
         {{-- Toggle has_mk_sejenis dan MK Lampau Input di bawah pertanyaan --}}
         <div class="px-5 py-4 bg-[#FAFBFC] border-t border-[#F0F2F5]">
-            <label class="inline-flex items-center gap-2 cursor-pointer select-none">
-                <input type="checkbox"
-                       wire:click="toggleMkSejenis({{ $rplMk->id }})"
-                       @checked($hasMkSejenis[$rplMk->id] ?? false)
-                       class="w-4 h-4 rounded accent-primary">
-                <span class="text-[13px] text-[#1a2a35] font-semibold">Saya pernah mengambil Mata Kuliah sejenis di PT Asal</span>
-            </label>
+            <div class="flex items-center gap-2 mb-4 cursor-pointer select-none">
+                <label class="inline-flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox"
+                           wire:click="toggleMkSejenis({{ $rplMk->id }})"
+                           @checked($hasMkSejenis[$rplMk->id] ?? false)
+                           class="w-4 h-4 rounded accent-primary cursor-pointer">
+                    <span class="text-[13px] text-[#1a2a35] font-semibold select-none">Saya pernah mengambil Mata Kuliah sejenis di PT Asal</span>
+                </label>
+                
+                {{-- Info icon tooltip --}}
+                <div class="group relative flex items-center cursor-help">
+                    <svg class="w-4 h-4 text-[#8a9ba8]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </svg>
+                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-[#1a2a35] text-white text-[11px] leading-[1.4] rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all pointer-events-none z-10 text-center shadow-lg">
+                        Diisi informasi mata kuliah sesuai dengan yang tertera pada transkrip nilai Anda di PT Asal.
+                    </div>
+                </div>
+            </div>
 
             @if ($hasMkSejenis[$rplMk->id] ?? false)
             <div class="mt-4 space-y-3">
