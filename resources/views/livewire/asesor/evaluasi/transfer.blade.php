@@ -16,6 +16,8 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     public array $nilaiTransfer = [];
     // mkCatatan[rpl_mk_id] = string
     public array $mkCatatan = [];
+    // catatanLampau[matkul_lampau_id] = string
+    public array $catatanLampau = [];
 
     public function mount(PermohonanRpl $permohonan): void
     {
@@ -39,7 +41,20 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         foreach ($this->permohonan->rplMataKuliah as $rplMk) {
             $this->nilaiTransfer[$rplMk->id] = $rplMk->nilai_transfer ?? '';
             $this->mkCatatan[$rplMk->id]     = $rplMk->catatan_asesor ?? '';
+
+            foreach ($rplMk->matkulLampau as $ml) {
+                $this->catatanLampau[$ml->id] = $ml->catatan_asesor ?? '';
+            }
         }
+    }
+
+    public function simpanCatatanLampau(int $matkulLampauId): void
+    {
+        $ml = \App\Models\MatkulLampau::findOrFail($matkulLampauId);
+        $ml->update([
+            'catatan_asesor' => $this->catatanLampau[$matkulLampauId] ?? null,
+        ]);
+        $this->dispatch('notify-saved');
     }
 
     public function simpanNilai(int $rplMkId): void
@@ -146,6 +161,24 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                         </table>
                     </div>
                 </div>
+                {{-- Catatan per MK Lampau --}}
+                @foreach ($rplMk->matkulLampau as $ml)
+                <div class="bg-[#FAFBFC] rounded-lg border border-[#F0F2F5] p-3 mb-3" wire:key="catatan-lampau-{{ $ml->id }}">
+                    <div class="flex items-start gap-3">
+                        <div class="flex-1">
+                            <label class="block text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] mb-1.5">Catatan MK Lampau — {{ $ml->kode_mk }} {{ $ml->nama_mk }}</label>
+                            <textarea wire:model="catatanLampau.{{ $ml->id }}" rows="2"
+                                      placeholder="Catatan khusus untuk MK lampau ini..."
+                                      class="w-full px-3 py-2 text-[12px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-lg outline-none focus:border-primary focus:ring-1 focus:ring-primary/10 resize-none"></textarea>
+                        </div>
+                        <button wire:click="simpanCatatanLampau({{ $ml->id }})"
+                                class="shrink-0 h-[38px] px-3 bg-primary hover:bg-[#005f78] text-white text-[11px] font-semibold rounded-lg transition-colors mt-5">
+                            Simpan
+                        </button>
+                    </div>
+                </div>
+                @endforeach
+
                 @elseif (! $rplMk->has_mk_sejenis)
                 <div class="mb-4 text-[12px] text-[#8a9ba8] italic">Peserta tidak memiliki MK sejenis di PT asal.</div>
                 @endif

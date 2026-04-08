@@ -12,9 +12,23 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="stylesheet" href="https://unpkg.com/nprogress@0.2.0/nprogress.css">
+    
+    <!-- Quill Editor (Lebih clean dan modern dari Trix) -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
     <style>
         #nprogress .bar { background: #004B5F !important; height: 2.5px !important; }
         #nprogress .peg { box-shadow: 0 0 10px #004B5F, 0 0 5px #004B5F !important; }
+        
+        /* Fix Tailwind CSS Reset untuk list di dalam Quill Editor */
+        .ql-editor ul { list-style-type: disc !important; padding-left: 1.5rem !important; }
+        .ql-editor ol { list-style-type: decimal !important; padding-left: 1.5rem !important; }
+        .ql-editor li { margin-bottom: 0.25rem; }
+        /* Styling tambahan agar Quill menyatu dengan tema PCR */
+        .ql-toolbar.ql-snow { border-radius: 12px 12px 0 0; border-color: #E0E5EA; background: #FAFBFC; }
+        .ql-container.ql-snow { border-radius: 0 0 12px 12px; border-color: #E0E5EA; background: white; font-family: 'Poppins', sans-serif; font-size: 13px; }
+        .ql-editor { min-height: 100px; color: #1a2a35; }
+        .ql-editor:focus { box-shadow: 0 0 0 2px rgba(0, 95, 120, 0.1); outline: none; }
     </style>
     <script src="https://unpkg.com/nprogress@0.2.0/nprogress.js"></script>
     <script>NProgress.configure({ showSpinner: false, trickleSpeed: 150 }); NProgress.start();</script>

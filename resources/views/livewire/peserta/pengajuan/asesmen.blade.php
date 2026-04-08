@@ -199,7 +199,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
     #[\Livewire\Attributes\Computed]
     public function totalPertanyaan(): int
     {
-        return \App\Models\Pertanyaan::whereIn('mata_kuliah_id', 
+        return \App\Models\Pertanyaan::whereIn('mata_kuliah_id',
             \App\Models\RplMataKuliah::where('permohonan_rpl_id', $this->permohonan->id)
                 ->pluck('mata_kuliah_id')
         )->count();
@@ -388,7 +388,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                     {{-- Rating buttons --}}
                     @if ($isDraf)
                     {{-- Mode edit: Alpine tanpa x-data yang berubah on morph untuk hindari desync + Debounce API Call --}}
-                    <div class="ml-7" x-data="{ 
+                    <div class="ml-7" x-data="{
                         sel: $wire.pertanyaanRatings[{{ $pt->id }}],
                         timer: null,
                         updateRating(nilai) {
@@ -488,7 +488,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                            class="w-4 h-4 rounded accent-primary cursor-pointer">
                     <span class="text-[13px] text-[#1a2a35] font-semibold select-none">Saya pernah mengambil Mata Kuliah sejenis di PT Asal</span>
                 </label>
-                
+
                 {{-- Info icon tooltip --}}
                 <div class="group relative flex items-center cursor-help">
                     <svg class="w-4 h-4 text-[#8a9ba8]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -552,6 +552,23 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                 @endforeach
             </div>
             @endif
+
+            {{-- Catatan Asesor (read-only, hanya muncul jika ada) --}}
+            @if ($rplMk->catatan_asesor)
+            <div class="mt-4 bg-[#F0F7FA] border border-[#C5DDE5] rounded-xl px-4 py-3">
+                <div class="text-[10px] font-semibold text-primary uppercase tracking-[0.7px] mb-1">Catatan Asesor — MK Tujuan</div>
+                <div class="text-[12px] text-[#1a2a35] leading-[1.6] [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mb-0.5 [&_b]:font-bold [&_i]:italic [&_u]:underline">{!! $rplMk->catatan_asesor !!}</div>
+            </div>
+            @endif
+
+            @foreach ($rplMk->matkulLampau as $ml)
+                @if ($ml->catatan_asesor)
+                <div class="mt-3 bg-[#FFF8E1] border border-[#FFE082] rounded-xl px-4 py-3">
+                    <div class="text-[10px] font-semibold text-[#b45309] uppercase tracking-[0.7px] mb-1">Catatan Asesor — MK Lampau ({{ $ml->kode_mk }})</div>
+                    <div class="text-[12px] text-[#1a2a35] leading-[1.6] [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mb-0.5 [&_b]:font-bold [&_i]:italic [&_u]:underline">{!! $ml->catatan_asesor !!}</div>
+                </div>
+                @endif
+            @endforeach
         </div>
 
     </div>

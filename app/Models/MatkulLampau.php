@@ -16,6 +16,7 @@ class MatkulLampau extends Model
         'nama_mk',
         'sks',
         'nilai_huruf',
+        'catatan_asesor',
     ];
 
     protected function casts(): array

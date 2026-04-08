@@ -27,6 +27,8 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     public array $nilaiAsesor = [];
     // nilaiTransfer[rpl_mk_id] = 'A'|'AB'|... (kalau hybrid lewat matkulLampau)
     public array $nilaiTransfer = [];
+    // catatanLampau[matkul_lampau_id] = string
+    public array $catatanLampau = [];
 
     public function mount(PermohonanRpl $permohonan): void
     {
@@ -64,6 +66,10 @@ new #[Layout('components.layouts.asesor')] class extends Component {
             foreach ($rplMk->asesmenMandiri as $asm) {
                 $this->nilaiAsesor[$asm->id] = $asm->nilaiAsesor?->nilai ?? 0;
             }
+
+            foreach ($rplMk->matkulLampau as $ml) {
+                $this->catatanLampau[$ml->id] = $ml->catatan_asesor ?? '';
+            }
         }
     }
 
@@ -82,6 +88,15 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         $this->dispatch('notify-saved');
     }
 
+    public function simpanCatatanLampau(int $matkulLampauId): void
+    {
+        $ml = \App\Models\MatkulLampau::findOrFail($matkulLampauId);
+        $ml->update([
+            'catatan_asesor' => $this->catatanLampau[$matkulLampauId] ?? null,
+        ]);
+        $this->dispatch('notify-saved');
+    }
+
     public function simpanNilaiTransfer(int $rplMkId): void
     {
         $nilai = $this->nilaiTransfer[$rplMkId] ?? '';
@@ -92,15 +107,20 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
         $nilaiEnum = \App\Enums\NilaiHurufEnum::from($nilai);
         $rplMk = \App\Models\RplMataKuliah::with('mataKuliah')->findOrFail($rplMkId);
-        
+
         $status = $nilaiEnum->diakui() ? StatusRplMataKuliahEnum::Diakui : StatusRplMataKuliahEnum::TidakDiakui;
 
         $rplMk->update([
             'nilai_transfer'  => $nilaiEnum->value,
-            'catatan_asesor'  => $this->mkCatatan[$rplMkId] ?? null,
             'status'          => $status,
             'sks_diakui'      => $nilaiEnum->diakui() ? ($rplMk->mataKuliah->sks ?? 0) : 0,
         ]);
+
+        foreach ($rplMk->matkulLampau as $ml) {
+            if (isset($this->catatanLampau[$ml->id])) {
+                $ml->update(['catatan_asesor' => $this->catatanLampau[$ml->id]]);
+            }
+        }
 
         $this->mkStatus[$rplMkId] = $status->value;
         $this->permohonan->refresh();
@@ -125,18 +145,31 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
         $this->nilaiAsesor[$asesmenMandiriId] = $nilai;
 
-        // Auto-set status MK jika semua sub-CPMK sudah dinilai
+        // Ambil data MK
         $asm   = \App\Models\AsesmenMandiri::find($asesmenMandiriId);
         $rplMk = $asm
             ? \App\Models\RplMataKuliah::with('asesmenMandiri.nilaiAsesor')->find($asm->rpl_mata_kuliah_id)
             : null;
 
-        if ($rplMk && $rplMk->asesmenMandiri->isNotEmpty()
-            && $rplMk->asesmenMandiri->every(fn($a) => $a->nilaiAsesor !== null)) {
-            $status = app(HitungKeputusanMkAction::class)->execute($rplMk);
-            $rplMk->update(['status' => $status]);
-            $this->mkStatus[$rplMk->id] = $status->value;
-            $this->dispatch('mk-status-updated', mkId: $rplMk->id, badge: $status->badgeClass(), label: $status->label());
+        if ($rplMk) {
+            $hitungAction = app(HitungKeputusanMkAction::class);
+            $rataRata = $hitungAction->rataRata($rplMk);
+            $rekomendasi = $rataRata !== null ? $hitungAction->execute($rplMk) : null;
+
+            $this->dispatch('rata-rata-updated',
+                mkId: $rplMk->id,
+                rataRata: $rataRata,
+                rekomendasiLabel: $rekomendasi?->label(),
+                isDiakui: $rekomendasi === \App\Enums\StatusRplMataKuliahEnum::Diakui
+            );
+
+            // Auto-set status MK jika semua sub-CPMK sudah dinilai
+            if ($rplMk->asesmenMandiri->isNotEmpty() && $rplMk->asesmenMandiri->every(fn($a) => $a->nilaiAsesor !== null)) {
+                $status = $rekomendasi;
+                $rplMk->update(['status' => $status]);
+                $this->mkStatus[$rplMk->id] = $status->value;
+                $this->dispatch('mk-status-updated', mkId: $rplMk->id, badge: $status->badgeClass(), label: $status->label());
+            }
         }
     }
 

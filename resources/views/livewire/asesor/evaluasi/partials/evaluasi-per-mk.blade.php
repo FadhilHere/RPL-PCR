@@ -86,7 +86,7 @@
                     </span>
 
                     {{-- Nilai asesor 1-5 --}}
-                    <div class="flex items-center gap-1" x-data="{ 
+                    <div class="flex items-center gap-1" x-data="{
                         nilai: $wire.nilaiAsesor[{{ $asm->id }}],
                         timer: null,
                         updateNilai(n) {
@@ -118,7 +118,7 @@
                             'm' => $vatm?->memadai  ?? false,
                         ];
                     @endphp
-                    <div class="flex items-center gap-3 ml-auto" x-data="{ 
+                    <div class="flex items-center gap-3 ml-auto" x-data="{
                         vatm: @js($vatmState),
                         timers: {},
                         toggleVatm(key, field) {
@@ -180,52 +180,83 @@
                 </table>
             </div>
 
-            {{-- Ringkasan MK Tujuan (PCR) --}}
-            <div class="bg-[#E8F4F8] rounded-xl border border-[#BDE0EB] p-4 mb-4 flex items-center gap-4">
-                <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm">
-                    <svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M4 19.5v-15A2.5 2.5 0 016.5 2H20v20H6.5a2.5 2.5 0 01-2.5-2.5z"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
-                    </svg>
-                </div>
-                <div>
-                    <div class="text-[10px] font-semibold text-primary uppercase tracking-[0.8px] mb-1">Mata Kuliah Tujuan (PCR)</div>
-                    <div class="flex items-center gap-2 text-[13px]">
-                        <span class="font-bold text-[#1a2a35]">{{ $mk->kode }}</span>
-                        <span class="text-[#8a9ba8]">&mdash;</span>
-                        <span class="font-semibold text-[#1a2a35]">{{ $mk->nama }}</span>
-                        <span class="px-2 py-0.5 rounded-md bg-white text-primary text-[11px] font-bold border border-[#BDE0EB] ml-2">Semester {{ $mk->semester }}</span>
-                        <span class="px-2 py-0.5 rounded-md bg-white text-primary text-[11px] font-bold border border-[#BDE0EB]">{{ $mk->sks }} SKS</span>
+            {{-- MK Tujuan (Header) --}}
+            <div class="rounded-xl border-2 border-[#BDE0EB] overflow-hidden mb-4">
+                <div class="bg-[#E8F4F8] px-5 py-4 flex items-center gap-4">
+                    <div class="w-11 h-11 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm">
+                        <svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 19.5v-15A2.5 2.5 0 016.5 2H20v20H6.5a2.5 2.5 0 01-2.5-2.5z"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+                        </svg>
+                    </div>
+                    <div class="flex-1">
+                        <div class="text-[10px] font-semibold text-primary uppercase tracking-[0.8px] mb-1">Mata Kuliah Tujuan (PCR)</div>
+                        <div class="text-[15px] font-bold text-[#1a2a35]">{{ $mk->kode }} — {{ $mk->nama }}</div>
+                    </div>
+                    <div class="flex gap-2 shrink-0">
+                        <span class="px-3 py-1.5 rounded-lg bg-white text-primary text-[12px] font-bold border border-[#BDE0EB]">Semester {{ $mk->semester }}</span>
+                        <span class="px-3 py-1.5 rounded-lg bg-white text-primary text-[12px] font-bold border border-[#BDE0EB]">{{ $mk->sks }} SKS</span>
                     </div>
                 </div>
             </div>
 
-            {{-- Input Konversi Asesor --}}
-            <div class="bg-[#FAFBFC] rounded-xl border border-[#F0F2F5] p-4 flex flex-wrap items-end gap-4">
-                <div>
-                    <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-2">Konversi Nilai Asesor</label>
-                    <div class="flex gap-1.5">
-                        @foreach ($nilaiHurufOptions as $opt)
-                        <button type="button"
-                                wire:click="$set('nilaiTransfer.{{ $rplMk->id }}', '{{ $opt->value }}')"
-                                class="w-10 h-10 rounded-lg text-[12px] font-bold border transition-all
-                                       {{ ($nilaiTransfer[$rplMk->id] ?? '') === $opt->value
-                                           ? 'bg-primary border-primary text-white'
-                                           : 'bg-white border-[#D0D5DD] text-[#5a6a75] hover:border-primary hover:text-primary' }}">
-                            {{ $opt->value }}
-                        </button>
+            {{-- Konversi Nilai + Catatan Lampau --}}
+            <div class="bg-white rounded-xl border border-[#E5E8EC] px-5 py-5 shadow-sm">
+                <div class="flex flex-col lg:flex-row gap-8 mb-2">
+                    {{-- Kiri: Konversi Nilai --}}
+                    <div class="shrink-0 w-[420px]">
+                        <label class="block text-[12px] font-semibold text-[#1a2a35] mb-3">Konversi Nilai Asesor</label>
+                        <div class="flex gap-2 flex-wrap mb-1">
+                            @foreach ($nilaiHurufOptions as $opt)
+                            <button type="button"
+                                    wire:click="$set('nilaiTransfer.{{ $rplMk->id }}', '{{ $opt->value }}')"
+                                    class="w-12 h-12 rounded-xl text-[14px] font-bold border-2 transition-all
+                                           {{ ($nilaiTransfer[$rplMk->id] ?? '') === $opt->value
+                                               ? 'bg-primary border-primary text-white shadow-md shadow-primary/20'
+                                               : 'bg-white border-[#D0D5DD] text-[#5a6a75] hover:border-primary hover:text-primary' }}">
+                                {{ $opt->value }}
+                            </button>
+                            @endforeach
+                        </div>
+                        @error("nilaiTransfer.{$rplMk->id}") <p class="mt-1.5 text-[12px] text-[#c62828]">{{ $message }}</p> @enderror
+                    </div>
+
+                    {{-- Kanan: Catatan Lampau --}}
+                    <div class="flex-1 space-y-4">
+                        @foreach ($rplMk->matkulLampau as $ml)
+                        <div wire:key="cat-lampau-ui-{{ $ml->id }}">
+                            <label class="block text-[12px] font-semibold text-[#1a2a35] mb-2">
+                                Catatan Asesor untuk <span class="text-primary">{{ $ml->kode_mk }} — {{ $ml->nama_mk }}</span>
+                            </label>
+                            <div wire:ignore
+                                 x-data="{ content: @entangle('catatanLampau.'.$ml->id), quill: null }"
+                                 x-init="
+                                    quill = new Quill($refs.quillLampau{{ $ml->id }}, {
+                                        theme: 'snow',
+                                        placeholder: 'Tulis catatan asesor terkait matkul PT Asal ini...',
+                                        modules: {
+                                            toolbar: [
+                                                ['bold', 'italic', 'underline'],
+                                                [{ 'list': 'ordered'}, { 'list': 'bullet' }]
+                                            ]
+                                        }
+                                    });
+                                    if (content) quill.root.innerHTML = content;
+                                    quill.on('text-change', () => { content = quill.root.innerHTML === '<p><br></p>' ? '' : quill.root.innerHTML; });
+                                 ">
+                                <div x-ref="quillLampau{{ $ml->id }}"></div>
+                            </div>
+                        </div>
                         @endforeach
                     </div>
-                    @error("nilaiTransfer.{$rplMk->id}") <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
                 </div>
-                <div class="flex-1 min-w-[200px]">
-                    <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-2">Catatan Asesor (Opsional)</label>
-                    <input wire:model="mkCatatan.{{ $rplMk->id }}" type="text" placeholder="Catatan konversi nilai..."
-                           class="w-full h-[40px] px-3 text-[12px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-lg outline-none focus:border-primary focus:ring-1 focus:ring-primary/10" />
+
+                {{-- Simpan --}}
+                <div class="flex justify-end pt-5 mt-4 border-t border-[#F0F2F5]">
+                    <button wire:click="simpanNilaiTransfer({{ $rplMk->id }})"
+                            class="h-[46px] px-7 bg-primary hover:bg-[#005f78] text-white text-[13px] font-semibold rounded-xl transition-colors">
+                        Simpan Nilai & Catatan
+                    </button>
                 </div>
-                <button wire:click="simpanNilaiTransfer({{ $rplMk->id }})"
-                        class="h-[40px] px-5 bg-primary hover:bg-[#005f78] text-white text-[12px] font-semibold rounded-lg transition-colors shrink-0">
-                    Simpan Nilai
-                </button>
             </div>
         </div>
         @endif
@@ -239,21 +270,20 @@
                     $rataRata     = $hitungAction->rataRata($rplMk->load('asesmenMandiri.nilaiAsesor'));
                     $rekomendasi  = $rataRata !== null ? $hitungAction->execute($rplMk) : null;
                 @endphp
-                @if ($rataRata !== null)
-                <div class="mt-3 mb-1 flex items-center gap-3 px-1">
+                <div class="mt-3 mb-1 flex items-center gap-3 px-1"
+                     x-data="{ rate: {{ $rataRata !== null ? $rataRata : 'null' }}, rekLabel: '{{ $rekomendasi?->label() }}', diakui: {{ $rekomendasi === \App\Enums\StatusRplMataKuliahEnum::Diakui ? 'true' : 'false' }} }"
+                     @rata-rata-updated.window="if ($event.detail.mkId == {{ $rplMk->id }}) { rate = $event.detail.rataRata; rekLabel = $event.detail.rekomendasiLabel; diakui = $event.detail.isDiakui; }"
+                     x-show="rate !== null" x-cloak>
                     <span class="text-[11px] text-[#8a9ba8]">
                         Rata-rata nilai asesor:
-                        <span class="font-semibold text-[#1a2a35]">{{ $rataRata }}</span> / 5
+                        <span class="font-semibold text-[#1a2a35]" x-text="rate"></span> / 5
                     </span>
-                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full
-                        {{ $rekomendasi === \App\Enums\StatusRplMataKuliahEnum::Diakui
-                            ? 'bg-[#E6F4EA] text-[#1e7e3e]'
-                            : 'bg-[#FCE8E6] text-[#c62828]' }}">
-                        Rekomendasi: {{ $rekomendasi?->label() }}
+                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                          :class="diakui ? 'bg-[#E6F4EA] text-[#1e7e3e]' : 'bg-[#FCE8E6] text-[#c62828]'">
+                        Rekomendasi: <span x-text="rekLabel"></span>
                     </span>
                     <span class="text-[10px] text-[#b0bec5]">— (Status final dapat di-override di bawah jika perlu)</span>
                 </div>
-                @endif
             @endif
 
             {{-- Set Status Override Asesor --}}
@@ -266,15 +296,27 @@
                             :options="collect(\App\Enums\StatusRplMataKuliahEnum::cases())->mapWithKeys(fn($e) => [$e->value => $e->label()])->all()"
                         />
                     </div>
-                    <div class="flex-1">
-                        <textarea wire:model="mkCatatan.{{ $rplMk->id }}"
-                                  rows="2"
-                                  placeholder="Tambahkan catatan jika diperlukan..."
-                                  class="w-full px-3 py-2 text-[12px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition resize-none"></textarea>
+                    <div class="flex-1" wire:ignore
+                         x-data="{ content: @entangle('mkCatatan.'.$rplMk->id), quill: null }"
+                         x-init="
+                            quill = new Quill($refs.quillContainerOverride, {
+                                theme: 'snow',
+                                placeholder: 'Tambahkan catatan khusus...',
+                                modules: {
+                                    toolbar: [
+                                        ['bold', 'italic', 'underline'],
+                                        [{ 'list': 'ordered'}, { 'list': 'bullet' }]
+                                    ]
+                                }
+                            });
+                            if (content) quill.root.innerHTML = content;
+                            quill.on('text-change', () => { content = quill.root.innerHTML === '<p><br></p>' ? '' : quill.root.innerHTML; });
+                         ">
+                        <div x-ref="quillContainerOverride"></div>
                     </div>
                     <button wire:click="saveMkStatus({{ $rplMk->id }})"
                             class="shrink-0 h-[42px] px-4 bg-primary hover:bg-[#005f78] text-white text-[12px] font-semibold rounded-xl transition-colors">
-                        Simpan Status Override
+                        Simpan
                     </button>
                 </div>
             </div>
