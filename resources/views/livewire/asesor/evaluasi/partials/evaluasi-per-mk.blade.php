@@ -9,13 +9,15 @@
 <div class="bg-white rounded-xl border border-[#E5E8EC] overflow-hidden mb-4" wire:key="rplmk-{{ $rplMk->id }}">
 
     {{-- Header MK --}}
-    <div class="flex items-center gap-3 px-5 py-4 border-b border-[#F0F2F5] bg-[#FAFBFC]">
+    <div class="flex items-center gap-3 px-5 py-4 border-b border-[#F0F2F5] bg-[#FAFBFC]"
+         x-data="{ badge: '{{ $mkBadge }}', label: '{{ $mkBadgeLabel }}' }"
+         @mk-status-updated.window="if ($event.detail.mkId == {{ $rplMk->id }}) { badge = $event.detail.badge; label = $event.detail.label; }">
         <span class="text-[10px] font-semibold text-primary bg-[#E8F4F8] px-[7px] py-[3px] rounded shrink-0">{{ $mk->kode }}</span>
         <div class="flex-1">
             <div class="text-[13px] font-semibold text-[#1a2a35]">{{ $mk->nama }}</div>
             <div class="text-[11px] text-[#8a9ba8]">{{ $mk->sks }} SKS · Semester {{ $mk->semester }}</div>
         </div>
-        <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full {{ $mkBadge }}">{{ $mkBadgeLabel }}</span>
+        <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full" :class="badge" x-text="label"></span>
     </div>
 
     <div class="px-5 py-4">
@@ -84,13 +86,22 @@
                     </span>
 
                     {{-- Nilai asesor 1-5 --}}
-                    <div class="flex items-center gap-1"
-                         x-data="{ nilai: {{ $nilaiAsesor[$asm->id] ?? 0 }} }">
+                    <div class="flex items-center gap-1" x-data="{ 
+                        nilai: $wire.nilaiAsesor[{{ $asm->id }}],
+                        timer: null,
+                        updateNilai(n) {
+                            this.nilai = n;
+                            clearTimeout(this.timer);
+                            this.timer = setTimeout(() => {
+                                $wire.saveNilaiAsesor({{ $asm->id }}, n);
+                            }, 500);
+                        }
+                    }">
                         <span class="text-[11px] font-medium text-[#5a6a75] mr-1 shrink-0">Asesor:</span>
                         @for ($n = 1; $n <= 5; $n++)
                         <button type="button"
-                                @click="nilai = {{ $n }}; $wire.saveNilaiAsesor({{ $asm->id }}, {{ $n }})"
-                                :class="nilai >= {{ $n }} ? 'bg-primary text-white border-primary' : 'bg-white text-[#D0D5DD] border-[#D8DDE2] hover:border-primary hover:text-primary'"
+                                @click="updateNilai({{ $n }})"
+                                :class="nilai == {{ $n }} ? 'bg-primary text-white border-primary' : 'bg-white text-[#D0D5DD] border-[#D8DDE2] hover:border-primary hover:text-primary'"
                                 class="w-7 h-7 rounded-lg text-[12px] font-bold border transition-all flex items-center justify-center">
                             {{ $n }}
                         </button>
@@ -107,17 +118,26 @@
                             'm' => $vatm?->memadai  ?? false,
                         ];
                     @endphp
-                    <div class="flex items-center gap-3 ml-auto"
-                         x-data="{ vatm: @js($vatmState) }">
+                    <div class="flex items-center gap-3 ml-auto" x-data="{ 
+                        vatm: @js($vatmState),
+                        timers: {},
+                        toggleVatm(key, field) {
+                            this.vatm[key] = !this.vatm[key];
+                            clearTimeout(this.timers[key]);
+                            this.timers[key] = setTimeout(() => {
+                                $wire.saveVatm({{ $asm->id }}, field, this.vatm[key]);
+                            }, 500);
+                        }
+                    }">
                         @foreach (['valid' => 'V', 'autentik' => 'A', 'terkini' => 'T', 'memadai' => 'M'] as $field => $label)
                         @php $key = substr($field, 0, 1); @endphp
                         <button type="button"
-                                @click="vatm['{{ $key }}'] = !vatm['{{ $key }}']; $wire.saveVatm({{ $asm->id }}, '{{ $field }}', vatm['{{ $key }}'])"
+                                @click="toggleVatm('{{ $key }}', '{{ $field }}')"
                                 :class="vatm['{{ $key }}'] ? 'bg-primary text-white border-primary' : 'bg-white text-[#5a6a75] border-[#D8DDE2] hover:border-primary hover:text-primary'"
                                 class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all"
                                 title="{{ ucfirst($field) }}">
                             <span>{{ $label }}</span>
-                            <svg x-show="vatm['{{ $key }}']" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <svg x-show="vatm['{{ $key }}']" x-cloak class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                                 <polyline points="20 6 9 17 4 12"/>
                             </svg>
                         </button>

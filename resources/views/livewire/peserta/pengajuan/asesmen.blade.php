@@ -77,9 +77,12 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         }
     }
 
+    #[\Livewire\Attributes\Renderless]
     public function saveRating(int $rplMkId, int $pertanyaanId, int $nilai): void
     {
         abort_if($nilai < 1 || $nilai > 5, 422);
+
+        $isNew = !isset($this->pertanyaanRatings[$pertanyaanId]);
 
         $this->pertanyaanRatings[$pertanyaanId] = $nilai;
 
@@ -88,9 +91,12 @@ new #[Layout('components.layouts.peserta')] class extends Component {
             ['penilaian_diri' => $nilai]
         );
 
-        if (! in_array($pertanyaanId, $this->asesmenIds)) {
+        if ($isNew && ! in_array($pertanyaanId, $this->asesmenIds)) {
             $this->asesmenIds[] = $pertanyaanId;
         }
+
+        $this->dispatch('progress-updated', dinilai: $this->totalDinilai(), total: $this->totalPertanyaan());
+        $this->dispatch('rating-recorded', rplMkId: $rplMkId, isNew: $isNew);
     }
 
     public function toggleMkSejenis(int $rplMkId): void
@@ -147,6 +153,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         );
 
         $this->matkulLampau[$rplMkId]['id'] = $ml->id;
+        $this->dispatch('notify-saved');
     }
 
     public function toggleBerkas(int $dokumenId, int $pertanyaanId, int $rplMkId): void
@@ -189,20 +196,18 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         $this->buktiTerpilih[$pertanyaanId] = $referensi;
     }
 
+    #[\Livewire\Attributes\Computed]
     public function totalPertanyaan(): int
     {
-        return $this->permohonan->rplMataKuliah->sum(
-            fn($rplMk) => $rplMk->mataKuliah->pertanyaan->count()
-        );
+        return \App\Models\Pertanyaan::whereIn('mata_kuliah_id', 
+            \App\Models\RplMataKuliah::where('permohonan_rpl_id', $this->permohonan->id)
+                ->pluck('mata_kuliah_id')
+        )->count();
     }
 
     public function totalDinilai(): int
     {
-        $allIds = $this->permohonan->rplMataKuliah
-            ->flatMap(fn($rplMk) => $rplMk->mataKuliah->pertanyaan->pluck('id'))
-            ->all();
-
-        return count(array_intersect($allIds, array_keys($this->pertanyaanRatings)));
+        return count($this->pertanyaanRatings);
     }
 
     public function isComplete(): bool
@@ -224,7 +229,23 @@ new #[Layout('components.layouts.peserta')] class extends Component {
 <x-slot:title>Asesmen Mandiri</x-slot:title>
 <x-slot:subtitle><a href="{{ route('peserta.pengajuan.index') }}" class="text-primary hover:underline">Pengajuan RPL</a> &rsaquo; {{ $permohonan->nomor_permohonan }}</x-slot:subtitle>
 
-<div x-data="{ modalBukti: { show: false, pertanyaanId: 0, rplMkId: 0 }, modalAjukan: false }">
+<div x-data="{ modalBukti: { show: false, pertanyaanId: 0, rplMkId: 0 }, modalAjukan: false, showToast: false }"
+     @notify-saved.window="showToast = true; setTimeout(() => showToast = false, 3000)">
+
+    {{-- Toast Notifikasi --}}
+    <div x-show="showToast" x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 translate-y-2"
+         class="fixed bottom-6 right-6 z-[9999] flex items-center gap-2.5 bg-primary text-white text-[12px] font-medium px-4 py-3 rounded-xl shadow-lg">
+        <svg class="w-4 h-4 text-[#4ade80] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        Berhasil disimpan
+    </div>
 
     @php
         $isDraf      = $permohonan->status === StatusPermohonanEnum::Diproses;
@@ -254,22 +275,27 @@ new #[Layout('components.layouts.peserta')] class extends Component {
     @endif
 
     {{-- Progress bar --}}
-    <div class="bg-white rounded-xl border border-[#E5E8EC] px-5 py-4 mb-5">
+    <div class="bg-white rounded-xl border border-[#E5E8EC] px-5 py-4 mb-5"
+         x-data="{ total: {{ $total }}, dinilai: {{ $dinilai }} }"
+         @progress-updated.window="dinilai = $event.detail.dinilai; total = $event.detail.total">
         <div class="flex items-center justify-between mb-2">
             <span class="text-[13px] font-semibold text-[#1a2a35]">Progress Penilaian Diri</span>
-            <span class="text-[13px] font-semibold text-primary">{{ $dinilai }} / {{ $total }} Pertanyaan</span>
+            <span class="text-[13px] font-semibold text-primary"><span x-text="dinilai"></span> / <span x-text="total"></span> Pertanyaan</span>
         </div>
         <div class="w-full h-2 bg-[#E5E8EC] rounded-full overflow-hidden">
             <div class="h-full bg-primary rounded-full transition-all duration-300"
-                 style="width: {{ $progress }}%"></div>
+                 :style="`width: ${total > 0 ? Math.round((dinilai / total) * 100) : 0}%`"></div>
         </div>
         <div class="text-[11px] text-[#8a9ba8] mt-1.5">
             @if (! $isDraf && $permohonan->status !== StatusPermohonanEnum::Diajukan)
                 <span class="text-[#1e7e3e] font-medium">✓ Asesmen disubmit. Menunggu verifikasi bersama asesor.</span>
-            @elseif ($this->isComplete())
-                <span class="text-[#1e7e3e] font-medium">✓ Semua pertanyaan sudah dinilai. Lampirkan berkas pendukung, lalu ajukan permohonan.</span>
             @else
-                {{ $total - $dinilai }} pertanyaan lagi perlu dinilai.
+                <template x-if="dinilai >= total">
+                    <span class="text-[#1e7e3e] font-medium">✓ Semua pertanyaan sudah dinilai. Lampirkan berkas pendukung, lalu ajukan permohonan.</span>
+                </template>
+                <template x-if="dinilai < total">
+                    <span><span x-text="total - dinilai"></span> pertanyaan lagi perlu dinilai.</span>
+                </template>
             @endif
         </div>
     </div>
@@ -305,20 +331,22 @@ new #[Layout('components.layouts.peserta')] class extends Component {
     @php $mk = $rplMk->mataKuliah; @endphp
     <div class="bg-white rounded-xl border border-[#E5E8EC] overflow-hidden mb-4" wire:key="rplmk-{{ $rplMk->id }}">
 
-        {{-- Header MK — nama dan kode disembunyikan dari peserta (Poin 13) --}}
-        <div class="flex items-center gap-3 px-5 py-4 border-b border-[#F0F2F5]">
+        {{-- Header MK --}}
+        @php
+            $mkPtIds   = $mk->pertanyaan->pluck('id')->all();
+            $mkDinilai = count(array_intersect($mkPtIds, array_keys($this->pertanyaanRatings)));
+            $mkTotal   = count($mkPtIds);
+        @endphp
+        <div class="flex items-center gap-3 px-5 py-4 border-b border-[#F0F2F5]"
+             x-data="{ dinilai: {{ $mkDinilai }}, total: {{ $mkTotal }} }"
+             @rating-recorded.window="if ($event.detail.rplMkId == {{ $rplMk->id }} && $event.detail.isNew) dinilai++">
             <span class="text-[11px] font-semibold text-primary bg-[#E8F4F8] px-[8px] py-[4px] rounded shrink-0">{{ $mk->nama }}</span>
             <div class="flex-1">
-                {{-- <div class="text-[13px] font-semibold text-[#1a2a35]">{{ $mk->sks }} SKS · Semester {{ $mk->semester }}</div> --}}
                 <div class="text-[11px] text-[#8a9ba8] max-w-lg">Keterampilan ini dapat diperoleh dari pengalaman kerja, pelatihan, sertifikasi, atau pendidikan formal. Dapat dibuktikan dengan transkrip, CV, sertifikat, surat keterangan, dll.</div>
             </div>
-            @php
-                $mkPtIds   = $mk->pertanyaan->pluck('id')->all();
-                $mkDinilai = count(array_intersect($mkPtIds, array_keys($this->pertanyaanRatings)));
-                $mkTotal   = count($mkPtIds);
-            @endphp
-            <span class="text-[11px] font-medium {{ $mkDinilai >= $mkTotal && $mkTotal > 0 ? 'text-[#1e7e3e]' : 'text-[#8a9ba8]' }} shrink-0">
-                {{ $mkDinilai }}/{{ $mkTotal }}
+            <span class="text-[11px] font-medium shrink-0"
+                  :class="dinilai >= total && total > 0 ? 'text-[#1e7e3e]' : 'text-[#8a9ba8]'"
+                  x-text="`${dinilai}/${total}`">
             </span>
         </div>
 
@@ -359,17 +387,25 @@ new #[Layout('components.layouts.peserta')] class extends Component {
 
                     {{-- Rating buttons --}}
                     @if ($isDraf)
-                    {{-- Mode edit: Alpine untuk feedback instan, $wire untuk simpan --}}
-                    <div class="ml-7" x-data="{ sel: {{ $pertanyaanRatings[$pt->id] ?? 'null' }} }">
+                    {{-- Mode edit: Alpine tanpa x-data yang berubah on morph untuk hindari desync + Debounce API Call --}}
+                    <div class="ml-7" x-data="{ 
+                        sel: $wire.pertanyaanRatings[{{ $pt->id }}],
+                        timer: null,
+                        updateRating(nilai) {
+                            this.sel = nilai;
+                            clearTimeout(this.timer);
+                            this.timer = setTimeout(() => {
+                                $wire.saveRating({{ $rplMk->id }}, {{ $pt->id }}, nilai);
+                            }, 500);
+                        }
+                    }">
                         <p class="text-[11px] text-[#8a9ba8] mb-2">Semakin besar angka yang dipilih, semakin Anda memahami kompetensi ini.</p>
                         <div class="flex flex-wrap gap-2 mb-2">
                             @foreach ([1, 2, 3, 4, 5] as $nilai)
-                            <button
-                                @click="sel = {{ $nilai }}; $wire.saveRating({{ $rplMk->id }}, {{ $pt->id }}, {{ $nilai }})"
-                                :class="sel === {{ $nilai }}
-                                    ? 'bg-primary text-white border-primary'
-                                    : 'bg-white text-[#5a6a75] border-[#D8DDE2] hover:border-primary hover:text-primary'"
-                                class="w-10 h-10 rounded-lg text-[13px] font-semibold border transition-all">
+                            <button type="button"
+                                @click="updateRating({{ $nilai }})"
+                                :class="sel == {{ $nilai }} ? 'bg-primary text-white border-primary' : 'bg-white text-[#5a6a75] border-[#D8DDE2] hover:border-primary hover:text-primary'"
+                                class="w-10 h-10 rounded-lg text-[13px] font-semibold border transition-all flex items-center justify-center">
                                 {{ $nilai }}
                             </button>
                             @endforeach
@@ -393,8 +429,9 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                             </span>
                             @endforeach
 
-                            {{-- Muncul instan via Alpine x-show, tanpa round-trip Livewire --}}
-                            <button x-show="sel !== null"
+                            {{-- Muncul setelah peserta mengisi rating --}}
+                            <button type="button"
+                                    x-show="sel" x-cloak
                                     x-transition:enter="transition ease-out duration-150"
                                     x-transition:enter-start="opacity-0 scale-90"
                                     x-transition:enter-end="opacity-100 scale-100"
@@ -521,24 +558,24 @@ new #[Layout('components.layouts.peserta')] class extends Component {
     @endforeach
 
     {{-- Navigasi bawah --}}
-    <div class="flex items-center justify-between mt-2">
+    <div class="flex items-center justify-between mt-2"
+         x-data="{ total: {{ $total }}, dinilai: {{ $dinilai }} }"
+         @progress-updated.window="dinilai = $event.detail.dinilai; total = $event.detail.total">
         <a href="{{ route('peserta.pengajuan.index') }}"
            class="text-[13px] text-[#5a6a75] hover:text-primary transition-colors no-underline">
             ← Kembali ke Daftar
         </a>
         @if ($isDraf)
-            @if ($this->isComplete())
-            <button @click="modalAjukan = true"
+            <button x-show="dinilai >= total" x-cloak
+                    @click="modalAjukan = true"
                     class="bg-primary hover:bg-[#005f78] text-white text-[13px] font-semibold px-5 py-2.5 rounded-lg transition-colors">
                 Submit Asesmen
             </button>
-            @else
-            <button disabled
-                    title="{{ $total - $dinilai }} pertanyaan belum dinilai"
+            <button x-show="dinilai < total" disabled
+                    :title="(total - dinilai) + ' pertanyaan belum dinilai'"
                     class="bg-[#E5E8EC] text-[#8a9ba8] text-[13px] font-semibold px-5 py-2.5 rounded-lg cursor-not-allowed">
                 Submit Asesmen
             </button>
-            @endif
         @elseif ($permohonan->status === StatusPermohonanEnum::Diajukan)
         <span class="text-[12px] font-medium px-3 py-1.5 rounded-lg bg-[#FFF8E1] text-[#b45309]">
             Menunggu admin memproses

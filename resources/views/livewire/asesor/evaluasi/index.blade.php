@@ -107,6 +107,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         $this->dispatch('notify-saved');
     }
 
+    #[\Livewire\Attributes\Renderless]
     public function saveNilaiAsesor(int $asesmenMandiriId, int $nilai): void
     {
         abort_if($nilai < 1 || $nilai > 5, 422);
@@ -135,6 +136,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
             $status = app(HitungKeputusanMkAction::class)->execute($rplMk);
             $rplMk->update(['status' => $status]);
             $this->mkStatus[$rplMk->id] = $status->value;
+            $this->dispatch('mk-status-updated', mkId: $rplMk->id, badge: $status->badgeClass(), label: $status->label());
         }
     }
 
@@ -151,6 +153,9 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                 'dievaluasi_pada' => now(),
             ]
         );
+
+        // Muat ulang relasi evaluasiVatm agar template Livewire mendeteksi perubahan
+        $this->permohonan->load('rplMataKuliah.asesmenMandiri.evaluasiVatm');
     }
 
     public function saveMkStatus(int $rplMkId, SimpanStatusMkAction $action): void

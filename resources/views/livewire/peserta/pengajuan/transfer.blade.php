@@ -59,6 +59,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         }
     }
 
+    #[\Livewire\Attributes\Renderless]
     public function saveRating(int $rplMkId, int $pertanyaanId, int $nilai): void
     {
         abort_if($nilai < 1 || $nilai > 5, 422);
@@ -69,6 +70,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
             ['rpl_mata_kuliah_id' => $rplMkId, 'pertanyaan_id' => $pertanyaanId],
             ['penilaian_diri' => $nilai]
         );
+        $this->dispatch('progress-updated', dinilai: $this->totalDinilai(), total: $this->totalPertanyaan());
     }
 
     public function toggleMkSejenis(int $rplMkId): void
@@ -128,20 +130,18 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         $this->dispatch('notify-saved');
     }
 
+    #[\Livewire\Attributes\Computed]
     public function totalPertanyaan(): int
     {
-        return $this->permohonan->rplMataKuliah->sum(
-            fn($rplMk) => $rplMk->mataKuliah->pertanyaan->count()
-        );
+        return \App\Models\Pertanyaan::whereIn('mata_kuliah_id', 
+            \App\Models\RplMataKuliah::where('permohonan_rpl_id', $this->permohonan->id)
+                ->pluck('mata_kuliah_id')
+        )->count();
     }
 
     public function totalDinilai(): int
     {
-        $allIds = $this->permohonan->rplMataKuliah
-            ->flatMap(fn($rplMk) => $rplMk->mataKuliah->pertanyaan->pluck('id'))
-            ->all();
-
-        return count(array_intersect($allIds, array_keys($this->pertanyaanRatings)));
+        return count($this->pertanyaanRatings);
     }
 
     public function isComplete(): bool
@@ -216,22 +216,27 @@ new #[Layout('components.layouts.peserta')] class extends Component {
     @endif
 
     {{-- Progress bar --}}
-    <div class="bg-white rounded-xl border border-[#E5E8EC] px-5 py-4 mb-5">
+    <div class="bg-white rounded-xl border border-[#E5E8EC] px-5 py-4 mb-5"
+         x-data="{ total: {{ $total }}, dinilai: {{ $dinilai }} }"
+         @progress-updated.window="dinilai = $event.detail.dinilai; total = $event.detail.total">
         <div class="flex items-center justify-between mb-2">
             <span class="text-[13px] font-semibold text-[#1a2a35]">Progress Penilaian Diri</span>
-            <span class="text-[13px] font-semibold text-primary">{{ $dinilai }} / {{ $total }} Pertanyaan</span>
+            <span class="text-[13px] font-semibold text-primary"><span x-text="dinilai"></span> / <span x-text="total"></span> Pertanyaan</span>
         </div>
         <div class="w-full h-2 bg-[#E5E8EC] rounded-full overflow-hidden">
             <div class="h-full bg-primary rounded-full transition-all duration-300"
-                 style="width: {{ $progress }}%"></div>
+                 :style="`width: ${total > 0 ? Math.round((dinilai / total) * 100) : 0}%`"></div>
         </div>
         <div class="text-[11px] text-[#8a9ba8] mt-1.5">
             @if (! $isDraf && $permohonan->status !== StatusPermohonanEnum::Diajukan)
                 <span class="text-[#1e7e3e] font-medium">✓ Asesmen disubmit. Menunggu verifikasi bersama asesor.</span>
-            @elseif ($this->isComplete())
-                <span class="text-[#1e7e3e] font-medium">✓ Semua pertanyaan sudah dinilai. Anda dapat mensubmit asesmen.</span>
             @else
-                {{ $total - $dinilai }} pertanyaan lagi perlu dinilai.
+                <template x-if="dinilai >= total">
+                    <span class="text-[#1e7e3e] font-medium">✓ Semua pertanyaan sudah dinilai. Anda dapat mensubmit asesmen.</span>
+                </template>
+                <template x-if="dinilai < total">
+                    <span><span x-text="total - dinilai"></span> pertanyaan lagi perlu dinilai.</span>
+                </template>
             @endif
         </div>
     </div>
@@ -288,15 +293,23 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                         <span class="flex-1 text-[12px] text-[#1a2a35] leading-[1.5]">{{ $pt->pertanyaan }}</span>
                     </div>
                     @if ($permohonan->status === StatusPermohonanEnum::Diproses)
-                    <div class="ml-7" x-data="{ sel: {{ $pertanyaanRatings[$pt->id] ?? 'null' }} }">
+                    <div class="ml-7" x-data="{ 
+                        sel: $wire.pertanyaanRatings[{{ $pt->id }}],
+                        timer: null,
+                        updateRating(nilai) {
+                            this.sel = nilai;
+                            clearTimeout(this.timer);
+                            this.timer = setTimeout(() => {
+                                $wire.saveRating({{ $rplMk->id }}, {{ $pt->id }}, nilai);
+                            }, 500);
+                        }
+                    }">
                         <div class="flex flex-wrap gap-2 mb-2">
                             @foreach ([1, 2, 3, 4, 5] as $nilai)
-                            <button
-                                @click="sel = {{ $nilai }}; $wire.saveRating({{ $rplMk->id }}, {{ $pt->id }}, {{ $nilai }})"
-                                :class="sel === {{ $nilai }}
-                                    ? 'bg-primary text-white border-primary'
-                                    : 'bg-white text-[#5a6a75] border-[#D8DDE2] hover:border-primary hover:text-primary'"
-                                class="w-10 h-10 rounded-lg text-[13px] font-semibold border transition-all">
+                            <button type="button"
+                                @click="updateRating({{ $nilai }})"
+                                :class="sel == {{ $nilai }} ? 'bg-primary text-white border-primary' : 'bg-white text-[#5a6a75] border-[#D8DDE2] hover:border-primary hover:text-primary'"
+                                class="w-10 h-10 rounded-lg text-[13px] font-semibold border transition-all flex items-center justify-center">
                                 {{ $nilai }}
                             </button>
                             @endforeach
@@ -401,24 +414,24 @@ new #[Layout('components.layouts.peserta')] class extends Component {
     </div>
 
     {{-- Navigasi bawah --}}
-    <div class="flex items-center justify-between mt-2">
+    <div class="flex items-center justify-between mt-2"
+         x-data="{ total: {{ $total }}, dinilai: {{ $dinilai }} }"
+         @progress-updated.window="dinilai = $event.detail.dinilai; total = $event.detail.total">
         <a href="{{ route('peserta.pengajuan.index') }}"
            class="text-[13px] text-[#5a6a75] hover:text-primary transition-colors no-underline">
             ← Kembali ke Daftar
         </a>
         @if ($isDraf)
-            @if ($this->isComplete())
-            <button @click="modalAjukan = true"
+            <button x-show="dinilai >= total" x-cloak
+                    @click="modalAjukan = true"
                     class="bg-primary hover:bg-[#005f78] text-white text-[13px] font-semibold px-5 py-2.5 rounded-lg transition-colors">
                 Submit Asesmen
             </button>
-            @else
-            <button disabled
-                    title="{{ $total - $dinilai }} pertanyaan belum dinilai"
+            <button x-show="dinilai < total" disabled
+                    :title="(total - dinilai) + ' pertanyaan belum dinilai'"
                     class="bg-[#E5E8EC] text-[#8a9ba8] text-[13px] font-semibold px-5 py-2.5 rounded-lg cursor-not-allowed">
                 Submit Asesmen
             </button>
-            @endif
         @elseif ($permohonan->status === StatusPermohonanEnum::Diajukan)
         <span class="text-[12px] font-medium px-3 py-1.5 rounded-lg bg-[#FFF8E1] text-[#b45309]">
             Menunggu admin memproses
