@@ -2,16 +2,19 @@
 
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithFileUploads;
 use App\Actions\Asesor\SelesaikanVerifikasiAction;
 use App\Enums\JenisRplEnum;
 use App\Enums\NilaiHurufEnum;
-use App\Enums\StatusPermohonanEnum;
 use App\Enums\StatusRplMataKuliahEnum;
 use App\Models\PermohonanRpl;
 use App\Models\RplMataKuliah;
 
 new #[Layout('components.layouts.asesor')] class extends Component {
+    use WithFileUploads;
+
     public PermohonanRpl $permohonan;
+    public $berkasBA = null;
 
     // nilaiTransfer[rpl_mk_id] = 'A'|'AB'|'B'|'BC'|'C'|'D'|'E'
     public array $nilaiTransfer = [];
@@ -90,12 +93,17 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         $this->dispatch('notify-saved');
     }
 
-    public function selesaikanVerifikasi(string $catatanHasil = '', SelesaikanVerifikasiAction $action): void
+    public function selesaikanVerifikasi(SelesaikanVerifikasiAction $action, string $catatanHasil = ''): void
     {
-        $action->execute($this->permohonan, null, $catatanHasil);
+        if ($this->berkasBA) {
+            $this->validate(['berkasBA' => 'file|mimes:pdf,jpg,jpeg,png|max:10240']);
+        }
+
+        $action->execute($this->permohonan, $this->berkasBA, $catatanHasil);
 
         $this->permohonan->load('verifikasiBersama');
         $this->permohonan->refresh();
+        $this->berkasBA = null;
         $this->dispatch('notify-saved');
     }
 
@@ -154,6 +162,9 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
     {{-- Rekognisi SKS --}}
     <x-pengajuan.sks-rekognisi :permohonan="$permohonan" />
+
+    {{-- Verifikasi Bersama --}}
+    @include('livewire.asesor.evaluasi.partials.verifikasi-bersama')
 
     {{-- List MK --}}
     <div class="space-y-4 mb-6">
@@ -358,15 +369,5 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         </div>
         @endforeach
     </div>
-
-    {{-- Selesaikan Verifikasi --}}
-    @if ($permohonan->status === StatusPermohonanEnum::Verifikasi)
-    <div class="flex justify-end">
-        <button wire:click="selesaikanVerifikasi"
-                class="h-[42px] px-6 bg-primary hover:bg-[#005f78] text-white text-[13px] font-semibold rounded-xl transition-colors">
-            Selesai
-        </button>
-    </div>
-    @endif
 
 </div>

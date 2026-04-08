@@ -124,7 +124,7 @@
                             <button @click="bayarWarnOpen = false" class="flex-1 h-[40px] bg-white border border-[#D8DDE2] text-[#1a2a35] text-[13px] font-semibold rounded-xl hover:bg-[#F4F6F8] transition-colors">Tutup</button>
                             <button @click="bayarWarnOpen = false; $wire.prosesPermohonan(prodiId)"
                                     class="flex-1 h-[40px] bg-[#F57C00] hover:bg-[#E65100] text-white text-[13px] font-semibold rounded-xl transition-colors">
-                                Proses Tetap
+                                Tetap Proses
                             </button>
                         </div>
                     </div>
