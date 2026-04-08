@@ -73,8 +73,10 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         <div class="flex items-end gap-3">
             <div class="flex-1 max-w-xs">
                 <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">Tanggal Asesmen</label>
-                <input wire:model="tanggalAsesmen" type="date"
-                       class="w-full h-[42px] px-3.5 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" />
+                <x-form.date-picker x-model="$wire.tanggalAsesmen"
+                                    placeholder="Pilih tanggal asesmen..."
+                                    :enable-time="false"
+                                    class="w-full" />
                 @error('tanggalAsesmen') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
             </div>
             <button wire:click="generate" wire:loading.attr="disabled"
