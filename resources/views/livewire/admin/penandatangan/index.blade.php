@@ -2,11 +2,15 @@
 
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithFileUploads;
 use App\Actions\Admin\KelolaPenandatanganAction;
 use App\Enums\PosisiPenandatanganEnum;
 use App\Models\Penandatangan;
+use Illuminate\Support\Facades\Storage;
 
 new #[Layout('components.layouts.admin')] class extends Component {
+    use WithFileUploads;
+
     public bool $showForm  = false;
     public ?int $editId    = null;
     public string $nama    = '';
@@ -15,10 +19,11 @@ new #[Layout('components.layouts.admin')] class extends Component {
     public string $posisi  = 'kiri';
     public bool   $aktif   = true;
     public int    $urutan  = 1;
+    public $ttdFile        = null; // temporary uploaded file
 
     public function openCreate(): void
     {
-        $this->reset(['editId', 'nama', 'jabatan', 'nip', 'posisi', 'aktif', 'urutan']);
+        $this->reset(['editId', 'nama', 'jabatan', 'nip', 'posisi', 'aktif', 'urutan', 'ttdFile']);
         $this->posisi = 'kiri';
         $this->aktif  = true;
         $this->urutan = 1;
@@ -35,6 +40,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
         $this->posisi  = $p->posisi->value;
         $this->aktif   = $p->aktif;
         $this->urutan  = $p->urutan;
+        $this->ttdFile = null;
         $this->showForm = true;
     }
 
@@ -45,26 +51,52 @@ new #[Layout('components.layouts.admin')] class extends Component {
             'jabatan' => 'required|string|max:255',
             'posisi'  => 'required|in:kiri,kanan',
             'urutan'  => 'required|integer|min:1',
+            'ttdFile' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
         $posisiEnum = PosisiPenandatanganEnum::from($this->posisi);
 
         if ($this->editId) {
+            $penandatangan = Penandatangan::findOrFail($this->editId);
             $action->update(
-                Penandatangan::findOrFail($this->editId),
+                $penandatangan,
                 $this->nama, $this->jabatan, $this->nip ?: null,
                 $posisiEnum, $this->aktif, $this->urutan
             );
         } else {
-            $action->create($this->nama, $this->jabatan, $this->nip ?: null, $posisiEnum, $this->urutan);
+            $penandatangan = $action->create($this->nama, $this->jabatan, $this->nip ?: null, $posisiEnum, $this->urutan);
+        }
+
+        // Upload tanda tangan jika ada
+        if ($this->ttdFile) {
+            // Hapus file lama jika ada
+            if ($penandatangan->tanda_tangan && Storage::disk('local')->exists($penandatangan->tanda_tangan)) {
+                Storage::disk('local')->delete($penandatangan->tanda_tangan);
+            }
+            $ext  = $this->ttdFile->getClientOriginalExtension();
+            $path = $this->ttdFile->storeAs('penandatangan', 'ttd_' . $penandatangan->id . '.' . $ext, 'local');
+            $penandatangan->update(['tanda_tangan' => $path]);
         }
 
         $this->showForm = false;
     }
 
+    public function hapusTtd(int $id): void
+    {
+        $p = Penandatangan::findOrFail($id);
+        if ($p->tanda_tangan && Storage::disk('local')->exists($p->tanda_tangan)) {
+            Storage::disk('local')->delete($p->tanda_tangan);
+        }
+        $p->update(['tanda_tangan' => null]);
+    }
+
     public function delete(int $id, KelolaPenandatanganAction $action): void
     {
-        $action->delete(Penandatangan::findOrFail($id));
+        $p = Penandatangan::findOrFail($id);
+        if ($p->tanda_tangan && Storage::disk('local')->exists($p->tanda_tangan)) {
+            Storage::disk('local')->delete($p->tanda_tangan);
+        }
+        $action->delete($p);
     }
 
     public function with(): array
@@ -97,9 +129,19 @@ new #[Layout('components.layouts.admin')] class extends Component {
             <div class="divide-y divide-[#F6F8FA]">
                 @forelse ($$key as $p)
                 <div class="flex items-center justify-between px-5 py-3.5" wire:key="p-{{ $p->id }}">
-                    <div>
-                        <div class="text-[13px] font-medium text-[#1a2a35]">{{ $p->nama }}</div>
-                        <div class="text-[11px] text-[#8a9ba8]">{{ $p->jabatan }}{{ $p->nip ? ' · NIP ' . $p->nip : '' }}</div>
+                    <div class="flex items-center gap-3">
+                        {{-- Preview TTD --}}
+                        <div class="w-14 h-8 border border-[#E5E8EC] rounded-md bg-[#FAFBFC] flex items-center justify-center shrink-0 overflow-hidden">
+                            @if ($p->tanda_tangan && \Illuminate\Support\Facades\Storage::disk('local')->exists($p->tanda_tangan))
+                            <img src="{{ route('berkas.ttd.penandatangan', $p) }}" alt="TTD" class="max-h-full max-w-full object-contain p-0.5">
+                            @else
+                            <span class="text-[9px] text-[#c0c8d0]">No TTD</span>
+                            @endif
+                        </div>
+                        <div>
+                            <div class="text-[13px] font-medium text-[#1a2a35]">{{ $p->nama }}</div>
+                            <div class="text-[11px] text-[#8a9ba8]">{{ $p->jabatan }}{{ $p->nip ? ' · NIP ' . $p->nip : '' }}</div>
+                        </div>
                     </div>
                     <div class="flex items-center gap-1.5">
                         @if (!$p->aktif)
@@ -109,6 +151,12 @@ new #[Layout('components.layouts.admin')] class extends Component {
                                 class="w-[30px] h-[30px] rounded-md border border-[#D0D5DD] text-[#5a6a75] hover:border-primary hover:text-primary hover:bg-[#E8F4F8] transition-colors flex items-center justify-center">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
+                        @if ($p->tanda_tangan)
+                        <button wire:click="hapusTtd({{ $p->id }})" wire:confirm="Hapus tanda tangan ini?"
+                                class="w-[30px] h-[30px] rounded-md border border-[#D0D5DD] text-[#8a9ba8] hover:border-[#b45309] hover:text-[#b45309] hover:bg-[#FFF8E1] transition-colors flex items-center justify-center" title="Hapus TTD">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+                        </button>
+                        @endif
                         <button wire:click="delete({{ $p->id }})" wire:confirm="Hapus penandatangan ini?"
                                 class="w-[30px] h-[30px] rounded-md border border-[#D0D5DD] text-[#5a6a75] hover:border-[#c62828] hover:text-[#c62828] hover:bg-[#FCE8E6] transition-colors flex items-center justify-center">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
@@ -170,6 +218,35 @@ new #[Layout('components.layouts.admin')] class extends Component {
                             <input type="checkbox" wire:model="aktif" class="w-4 h-4 rounded accent-primary" />
                             <span class="text-[13px] text-[#5a6a75]">Aktif</span>
                         </label>
+                    </div>
+                    @endif
+                </div>
+
+                {{-- Upload Tanda Tangan --}}
+                <div>
+                    <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">
+                        Tanda Tangan <span class="normal-case font-normal text-[#b0bec5]">(JPG/PNG, maks 2MB, opsional)</span>
+                    </label>
+                    @if ($editId && ($ttdExisting = \App\Models\Penandatangan::find($editId)?->tanda_tangan))
+                    <div class="mb-2 flex items-center gap-2">
+                        <div class="border border-[#E5E8EC] rounded-lg p-1.5 bg-[#FAFBFC]">
+                            <img src="{{ route('berkas.ttd.penandatangan', $editId) }}" alt="TTD" class="h-10 object-contain">
+                        </div>
+                        <span class="text-[11px] text-[#8a9ba8]">TTD saat ini · upload baru untuk mengganti</span>
+                    </div>
+                    @endif
+                    <label class="flex items-center gap-2 px-3.5 py-2.5 border border-dashed border-[#D0D5DD] rounded-xl cursor-pointer hover:border-primary hover:bg-[#F8FBFC] transition-colors text-[12px] text-[#5a6a75]">
+                        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                        <span wire:loading.remove wire:target="ttdFile">
+                            @if ($ttdFile) {{ $ttdFile->getClientOriginalName() }} @else Pilih gambar tanda tangan @endif
+                        </span>
+                        <span wire:loading wire:target="ttdFile" class="text-[#8a9ba8]">Mengunggah...</span>
+                        <input type="file" wire:model="ttdFile" accept=".jpg,.jpeg,.png" class="hidden">
+                    </label>
+                    @error('ttdFile') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
+                    @if ($ttdFile)
+                    <div class="mt-2 border border-[#E5E8EC] rounded-lg p-2 bg-[#F8FBFC] inline-block">
+                        <img src="{{ $ttdFile->temporaryUrl() }}" alt="Preview TTD" class="h-12 object-contain">
                     </div>
                     @endif
                 </div>

@@ -81,6 +81,36 @@
                                    :options="$prodiOptions->mapWithKeys(fn($p) => [$p->id => $p->nama . ' (' . $p->kode . ')'])->all()" />
                     <p class="mt-1 text-[10px] text-[#8a9ba8]">Asesor hanya akan melihat pengajuan dari prodi yang dipilih.</p>
                 </div>
+
+                {{-- Upload Tanda Tangan --}}
+                <div>
+                    <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">
+                        Tanda Tangan <span class="normal-case font-normal text-[#b0bec5]">(JPG/PNG, maks 2MB, opsional)</span>
+                    </label>
+                    @php $asesorModel = $editUser?->asesor; @endphp
+                    @if ($asesorModel?->tanda_tangan && \Illuminate\Support\Facades\Storage::disk('local')->exists($asesorModel->tanda_tangan))
+                    <div class="mb-2 flex items-center gap-2">
+                        <div class="border border-[#E5E8EC] rounded-lg p-1.5 bg-[#FAFBFC]">
+                            <img src="{{ route('berkas.ttd.asesor', $asesorModel) }}" alt="TTD" class="h-10 object-contain">
+                        </div>
+                        <span class="text-[11px] text-[#8a9ba8]">TTD saat ini · upload baru untuk mengganti</span>
+                    </div>
+                    @endif
+                    <label class="flex items-center gap-2 px-3.5 py-2.5 border border-dashed border-[#D0D5DD] rounded-xl cursor-pointer hover:border-primary hover:bg-[#F8FBFC] transition-colors text-[12px] text-[#5a6a75]">
+                        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                        <span wire:loading.remove wire:target="ttdAsesor">
+                            @if ($ttdAsesor) {{ $ttdAsesor->getClientOriginalName() }} @else Pilih gambar tanda tangan @endif
+                        </span>
+                        <span wire:loading wire:target="ttdAsesor" class="text-[#8a9ba8]">Mengunggah...</span>
+                        <input type="file" wire:model="ttdAsesor" accept=".jpg,.jpeg,.png" class="hidden">
+                    </label>
+                    @error('ttdAsesor') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
+                    @if ($ttdAsesor)
+                    <div class="mt-2 border border-[#E5E8EC] rounded-lg p-2 bg-[#F8FBFC] inline-block">
+                        <img src="{{ $ttdAsesor->temporaryUrl() }}" alt="Preview TTD" class="h-12 object-contain">
+                    </div>
+                    @endif
+                </div>
             </div>
             @endif
 

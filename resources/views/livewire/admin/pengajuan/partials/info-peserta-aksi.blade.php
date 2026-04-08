@@ -140,6 +140,13 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1e7e3e" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
             <p class="text-[13px] font-semibold text-[#1e7e3e]">Permohonan Disetujui</p>
+            <a href="{{ route('export.hasil.word', $permohonan) }}"
+               class="inline-flex items-center gap-1.5 h-[34px] px-4 mt-3 text-[12px] font-semibold text-primary border border-[#BDE0EB] rounded-lg hover:bg-[#E8F4F8] transition-colors no-underline">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download Hasil (Word)
+            </a>
             @else
             <div class="w-10 h-10 rounded-full bg-[#FCE8E6] flex items-center justify-center mb-2">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c62828" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>

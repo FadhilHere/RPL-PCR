@@ -62,8 +62,8 @@
                           placeholder="Ringkasan hasil verifikasi bersama..."></textarea>
             </div>
             <button @click="konfirmasiOpen = true"
-                    class="bg-primary hover:bg-[#005f78] text-white text-[12px] font-semibold px-4 py-2 rounded-lg transition-colors">
-                Selesaikan Verifikasi →
+                    class="h-[42px] px-6 bg-primary hover:bg-[#005f78] text-white text-[13px] font-semibold rounded-xl transition-colors">
+                Selesai
             </button>
         </div>
         @endif

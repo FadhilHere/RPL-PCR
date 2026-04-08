@@ -17,6 +17,7 @@ class Penandatangan extends Model
         'posisi',
         'aktif',
         'urutan',
+        'tanda_tangan',
     ];
 
     protected function casts(): array

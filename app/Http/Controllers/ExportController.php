@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Enums\JenisRplEnum;
 use App\Enums\RoleEnum;
 use App\Enums\StatusRplMataKuliahEnum;
+use App\Exports\PerolehanHasilWordExport;
 use App\Exports\ResumeAsesmenExport;
 use App\Exports\TransferHasilWordExport;
+use App\Models\Penandatangan;
 use App\Models\PermohonanRpl;
 use App\Models\ProgramStudi;
 use App\Services\NilaiKonversiService;
@@ -116,9 +118,9 @@ class ExportController extends Controller
         return $pdf->download($filename);
     }
 
-    // ======================== Word Export Transfer Kredit ========================
+    // ======================== Word Export (Transfer & Perolehan) ========================
 
-    public function transferWord(PermohonanRpl $permohonan)
+    public function hasilWord(PermohonanRpl $permohonan)
     {
         $user = auth()->user();
 
@@ -128,12 +130,20 @@ class ExportController extends Controller
             403
         );
 
-        abort_if($permohonan->jenis_rpl !== JenisRplEnum::RplI, 404);
+        $nilaiKonversi = app(NilaiKonversiService::class);
+        $ttdKiri  = Penandatangan::where('posisi', 'kiri')->where('aktif', true)->orderBy('urutan')->first();
+        $ttdKanan = Penandatangan::where('posisi', 'kanan')->where('aktif', true)->orderBy('urutan')->first();
 
-        $export   = new TransferHasilWordExport(app(NilaiKonversiService::class));
+        if ($permohonan->jenis_rpl === JenisRplEnum::RplI) {
+            $export   = new TransferHasilWordExport($nilaiKonversi, $ttdKiri, $ttdKanan);
+            $jenisStr = 'Transfer';
+        } else {
+            $export   = new PerolehanHasilWordExport($nilaiKonversi, $ttdKiri, $ttdKanan);
+            $jenisStr = 'Perolehan';
+        }
+
         $phpWord  = $export->generate($permohonan);
-
-        $filename = 'Hasil_Transfer_' . $permohonan->nomor_permohonan . '_' . now()->format('Ymd') . '.docx';
+        $filename = 'Hasil_' . $jenisStr . '_' . $permohonan->nomor_permohonan . '_' . now()->format('Ymd') . '.docx';
         $tmpPath  = sys_get_temp_dir() . '/' . $filename;
 
         $writer = IOFactory::createWriter($phpWord, 'Word2007');

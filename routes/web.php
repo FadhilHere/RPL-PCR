@@ -77,7 +77,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('export/resume/pdf', [ExportController::class, 'resumePdf'])->name('export.resume.pdf');
     Route::get('export/resume/asesor/excel', [ExportController::class, 'resumeAsesorExcel'])->name('export.resume.asesor.excel');
     Route::get('export/resume/asesor/pdf', [ExportController::class, 'resumeAsesorPdf'])->name('export.resume.asesor.pdf');
-    Route::get('export/transfer/{permohonan}/word', [ExportController::class, 'transferWord'])->name('export.transfer.word');
+    Route::get('export/hasil/{permohonan}/word', [ExportController::class, 'hasilWord'])->name('export.hasil.word');
 });
 
 // ===================== BERKAS SERVE =====================
@@ -88,6 +88,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('verifikasi-bersama/{vb}/download', [BerkasController::class, 'downloadVerifikasi'])->name('verifikasi-bersama.download');
     Route::get('peserta/{peserta}/foto', [BerkasController::class, 'viewFoto'])->name('peserta.foto');
     Route::get('berita-acara/{beritaAcara}/download', [BerkasController::class, 'downloadBeritaAcara'])->name('asesor.berita-acara.download');
+    Route::get('ttd/penandatangan/{penandatangan}', [BerkasController::class, 'viewTtdPenandatangan'])->name('berkas.ttd.penandatangan');
+    Route::get('ttd/asesor/{asesor}', [BerkasController::class, 'viewTtdAsesor'])->name('berkas.ttd.asesor');
 });
 
 // ===================== LOGOUT =====================

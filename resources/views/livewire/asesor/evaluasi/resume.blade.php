@@ -86,6 +86,13 @@ new #[Layout('components.layouts.asesor')] class extends Component {
             </svg>
             Export PDF
         </a>
+        <a href="{{ route('export.hasil.word', $permohonan) }}"
+           class="flex items-center gap-1.5 h-[36px] px-3.5 text-[12px] font-semibold text-primary border border-[#BDE0EB] rounded-lg hover:bg-[#E8F4F8] transition-colors no-underline">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Export Word
+        </a>
     </div>
 
     {{-- Print button (commented out) --}}

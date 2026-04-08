@@ -16,9 +16,10 @@
         table.data th { background: #e8e8e8; text-align: center; font-weight: bold; }
         table.data td.center { text-align: center; }
         .ttd-section { margin-top: 40px; }
-        .ttd-table { width: 100%; }
-        .ttd-table td { text-align: center; padding: 0 20px; vertical-align: top; }
-        .ttd-box { min-height: 80px; }
+        .ttd-table { width: 100%; border-collapse: collapse; }
+        .ttd-table td { text-align: center; padding: 0 20px; vertical-align: top; width: 50%; }
+        .ttd-box { min-height: 70px; display: flex; align-items: center; justify-content: center; }
+        .ttd-box img { max-height: 65px; max-width: 140px; object-fit: contain; }
         .info-row { display: flex; gap: 40px; margin-bottom: 8px; font-size: 11pt; }
         .stat-box { border: 1px solid #ccc; display: inline-block; padding: 6px 14px; margin-right: 16px; font-size: 11pt; }
     </style>
@@ -81,20 +82,31 @@
     <div class="ttd-section">
         <table class="ttd-table">
             <tr>
+                {{-- TTD Kiri: Penandatangan (Admin BAAK) --}}
                 <td>
-                    <p style="margin:0">{{ $ba->penandatanganKiri?->jabatan ?? 'Jabatan Kiri' }}</p>
-                    <div class="ttd-box"></div>
+                    <p style="margin:0">{{ $ba->penandatanganKiri?->jabatan ?? 'Mengetahui,' }}</p>
+                    <div class="ttd-box">
+                        @if ($ba->penandatanganKiri?->tanda_tangan && \Illuminate\Support\Facades\Storage::disk('local')->exists($ba->penandatanganKiri->tanda_tangan))
+                        <img src="{{ Storage::disk('local')->path($ba->penandatanganKiri->tanda_tangan) }}" alt="TTD">
+                        @endif
+                    </div>
                     <p style="margin:0; font-weight:bold">{{ $ba->penandatanganKiri?->nama ?? '____________________' }}</p>
                     @if ($ba->penandatanganKiri?->nip)
                     <p style="margin:0; font-size:10pt">NIP. {{ $ba->penandatanganKiri->nip }}</p>
                     @endif
                 </td>
+
+                {{-- TTD Kanan: Asesor --}}
                 <td>
-                    <p style="margin:0">{{ $ba->penandatanganKanan?->jabatan ?? 'Jabatan Kanan' }}</p>
-                    <div class="ttd-box"></div>
-                    <p style="margin:0; font-weight:bold">{{ $ba->penandatanganKanan?->nama ?? '____________________' }}</p>
-                    @if ($ba->penandatanganKanan?->nip)
-                    <p style="margin:0; font-size:10pt">NIP. {{ $ba->penandatanganKanan->nip }}</p>
+                    <p style="margin:0">Asesor,</p>
+                    <div class="ttd-box">
+                        @if ($ba->asesor?->tanda_tangan && \Illuminate\Support\Facades\Storage::disk('local')->exists($ba->asesor->tanda_tangan))
+                        <img src="{{ Storage::disk('local')->path($ba->asesor->tanda_tangan) }}" alt="TTD">
+                        @endif
+                    </div>
+                    <p style="margin:0; font-weight:bold">{{ $ba->asesor?->user?->nama ?? '____________________' }}</p>
+                    @if ($ba->asesor?->nidn)
+                    <p style="margin:0; font-size:10pt">NIDN. {{ $ba->asesor->nidn }}</p>
                     @endif
                 </td>
             </tr>

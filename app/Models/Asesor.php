@@ -20,6 +20,7 @@ class Asesor extends Model
         'bidang_keahlian',
         'sertifikat_kompetensi',
         'sudah_pelatihan_rpl',
+        'tanda_tangan',
     ];
 
     protected function casts(): array

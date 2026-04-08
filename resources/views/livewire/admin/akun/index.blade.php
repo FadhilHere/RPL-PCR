@@ -3,6 +3,7 @@
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
+use Livewire\WithFileUploads;
 use App\Actions\Admin\TambahAdminAction;
 use App\Actions\Admin\TambahAsesorAction;
 use App\Actions\Admin\TambahPesertaAction;
@@ -12,9 +13,10 @@ use App\Models\User;
 use App\Models\ProgramStudi;
 use App\Livewire\Forms\TambahAkunForm;
 use App\Livewire\Forms\EditAkunForm;
+use Illuminate\Support\Facades\Storage;
 
 new #[Layout('components.layouts.admin')] class extends Component {
-    use WithPagination;
+    use WithPagination, WithFileUploads;
 
     public string $search     = '';
     public string $filterRole = '';
@@ -26,6 +28,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
     public ?int       $editUserId = null;
     public EditAkunForm $edit;
     public ?int $editProdiId = null;
+    public $ttdAsesor = null; // temporary file upload untuk TTD asesor
 
     public function updatedSearch(): void { $this->resetPage(); }
     public function updatedFilterRole(): void { $this->resetPage(); }
@@ -97,6 +100,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
         $this->edit->nama        = $user->nama;
         $this->edit->email       = $user->email;
         $this->edit->newPassword = '';
+        $this->ttdAsesor         = null;
         $this->resetValidation();
 
         if ($user->role === RoleEnum::Asesor && $user->asesor) {
@@ -132,6 +136,10 @@ new #[Layout('components.layouts.admin')] class extends Component {
             'edit.bidangKeahlian.required' => 'Bidang keahlian wajib diisi.',
         ]);
 
+        if ($user->role === RoleEnum::Asesor && $this->ttdAsesor !== null) {
+            $this->validate(['ttdAsesor' => 'image|mimes:jpg,jpeg,png|max:2048']);
+        }
+
         $action->execute(
             $this->editUserId,
             $this->edit->nama,
@@ -142,6 +150,19 @@ new #[Layout('components.layouts.admin')] class extends Component {
             $this->edit->sudahPelatihan,
             $this->editProdiId ? [$this->editProdiId] : [],
         );
+
+        // Upload TTD asesor jika ada
+        if ($user->role === RoleEnum::Asesor && $this->ttdAsesor !== null) {
+            $asesor = $user->fresh()->asesor;
+            if ($asesor) {
+                if ($asesor->tanda_tangan && Storage::disk('local')->exists($asesor->tanda_tangan)) {
+                    Storage::disk('local')->delete($asesor->tanda_tangan);
+                }
+                $ext  = $this->ttdAsesor->getClientOriginalExtension();
+                $path = $this->ttdAsesor->storeAs('asesor', 'ttd_' . $asesor->id . '.' . $ext, 'local');
+                $asesor->update(['tanda_tangan' => $path]);
+            }
+        }
 
         $this->editUserId = null;
     }

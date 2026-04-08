@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Enums\RoleEnum;
+use App\Models\Asesor;
 use App\Models\BeritaAcara;
 use App\Models\DokumenBukti;
+use App\Models\Penandatangan;
 use App\Models\Peserta;
 use App\Models\VerifikasiBersama;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -146,5 +148,31 @@ class BerkasController extends Controller
         }
 
         return response()->file($path, ['Content-Type' => $mimeType]);
+    }
+
+    // ======================== Tanda Tangan ========================
+
+    public function viewTtdPenandatangan(Penandatangan $penandatangan)
+    {
+        $user = auth()->user();
+        abort_if(! in_array($user->role, [RoleEnum::Admin, RoleEnum::AdminBaak, RoleEnum::AdminPmb, RoleEnum::Asesor]), 403);
+        abort_if(! $penandatangan->tanda_tangan || ! Storage::disk('local')->exists($penandatangan->tanda_tangan), 404);
+
+        return response()->file(
+            Storage::disk('local')->path($penandatangan->tanda_tangan),
+            ['Content-Type' => Storage::disk('local')->mimeType($penandatangan->tanda_tangan)]
+        );
+    }
+
+    public function viewTtdAsesor(Asesor $asesor)
+    {
+        $user = auth()->user();
+        abort_if(! in_array($user->role, [RoleEnum::Admin, RoleEnum::AdminBaak, RoleEnum::AdminPmb, RoleEnum::Asesor]), 403);
+        abort_if(! $asesor->tanda_tangan || ! Storage::disk('local')->exists($asesor->tanda_tangan), 404);
+
+        return response()->file(
+            Storage::disk('local')->path($asesor->tanda_tangan),
+            ['Content-Type' => Storage::disk('local')->mimeType($asesor->tanda_tangan)]
+        );
     }
 }
