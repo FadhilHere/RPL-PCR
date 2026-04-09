@@ -69,6 +69,7 @@ Route::prefix('admin')->middleware(['auth', 'verified', 'role:admin|admin_baak']
     Volt::route('jadwal', 'admin.jadwal.index')->name('admin.jadwal.index');
     Volt::route('pleno', 'admin.pleno.index')->name('admin.pleno.index');
     Volt::route('pleno/{permohonan}', 'admin.pleno.detail')->name('admin.pleno.detail');
+    Volt::route('berita-acara', 'admin.berita-acara.index')->name('admin.berita-acara.index');
 });
 
 // ===================== EXPORT =====================
@@ -88,6 +89,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('verifikasi-bersama/{vb}/download', [BerkasController::class, 'downloadVerifikasi'])->name('verifikasi-bersama.download');
     Route::get('peserta/{peserta}/foto', [BerkasController::class, 'viewFoto'])->name('peserta.foto');
     Route::get('berita-acara/{beritaAcara}/download', [BerkasController::class, 'downloadBeritaAcara'])->name('asesor.berita-acara.download');
+    Route::get('berita-acara/download/dinamis', [BerkasController::class, 'downloadBeritaAcaraDinamis'])->name('berita-acara.dynamic.download');
+    Route::get('berita-acara/download/dinamis/word', [BerkasController::class, 'downloadBeritaAcaraDinamisWord'])->name('berita-acara.dynamic.download.word');
     Route::get('ttd/penandatangan/{penandatangan}', [BerkasController::class, 'viewTtdPenandatangan'])->name('berkas.ttd.penandatangan');
     Route::get('ttd/asesor/{asesor}', [BerkasController::class, 'viewTtdAsesor'])->name('berkas.ttd.asesor');
     Route::get('ttd/program-studi/{programStudi}', [BerkasController::class, 'viewTtdProgramStudi'])->name('berkas.ttd.program-studi');
