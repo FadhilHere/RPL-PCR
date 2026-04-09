@@ -3,9 +3,15 @@
     'enableTime'  => true,
 ])
 
+@php
+    $wireModel = $attributes->wire('model');
+    $modelName = $wireModel->value();
+    $isLive = $wireModel->hasModifier('live');
+@endphp
+
 <div
     x-data="{
-        value: '',
+        value: {{ $modelName ? '$wire.entangle(\'' . $modelName . '\', ' . ($isLive ? 'true' : 'false') . ')' : '""' }},
         open: false,
         viewYear: new Date().getFullYear(),
         viewMonth: new Date().getMonth(),

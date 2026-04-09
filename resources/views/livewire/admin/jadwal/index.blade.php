@@ -131,12 +131,12 @@ new #[Layout('components.layouts.admin')] class extends Component {
                        :options="$statusOptions"
                        class="w-[160px]" />
         <div class="flex items-center gap-2">
-            <x-form.date-picker x-model="$wire.filterTanggalDari"
+            <x-form.date-picker wire:model.live="filterTanggalDari"
                                 placeholder="Dari tanggal..."
                                 :enable-time="false"
                                 class="w-[175px]" />
             <span class="text-[12px] text-[#8a9ba8]">—</span>
-            <x-form.date-picker x-model="$wire.filterTanggalSampai"
+            <x-form.date-picker wire:model.live="filterTanggalSampai"
                                 placeholder="Sampai tanggal..."
                                 :enable-time="false"
                                 class="w-[175px]" />

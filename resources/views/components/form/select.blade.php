@@ -9,6 +9,9 @@
     $wireModel = $attributes->wire('model');
     $modelName = $wireModel->value();
     $isLive = $wireModel->hasModifier('live');
+    $valueBinding = $modelName
+        ? '$wire.entangle(' . Js::from($modelName) . ', ' . ($isLive ? 'true' : 'false') . ')'
+        : "''";
     $optionItems = collect($options)
         ->map(fn($label, $value) => [
             'value' => $value,
@@ -21,7 +24,7 @@
 <div
     x-data="{
         open: false,
-        value: $wire.entangle('{{ $modelName }}', {{ $isLive ? 'true' : 'false' }}),
+        value: {!! $valueBinding !!},
         items: {{ Js::from($optionItems) }},
         hasPlaceholder: {{ $placeholder ? 'true' : 'false' }},
         placeholderText: {{ Js::from($placeholder ?? 'Pilih...') }},
@@ -66,6 +69,7 @@
             this.open = false;
         }
     }"
+    x-modelable="value"
     @click.outside="open = false"
     @keydown.escape.window="open = false"
     {{ $attributes->whereDoesntStartWith('wire:')->merge(['class' => 'relative']) }}

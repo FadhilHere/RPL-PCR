@@ -299,26 +299,43 @@ class BerkasController extends Controller
         $phpWord->setDefaultFontSize(11);
 
         $section = $phpWord->addSection([
-            'marginTop' => 1000,
-            'marginBottom' => 1000,
+            'marginTop' => 1450,
+            'marginBottom' => 1150,
             'marginLeft' => 1000,
             'marginRight' => 1000,
+            'headerHeight' => 700,
+            'footerHeight' => 700,
         ]);
 
         $center = ['alignment' => Jc::CENTER];
+        $left = ['alignment' => Jc::START];
         $logoPath = public_path('img/logo_pcr.png');
+
+        // Header: logo dokumen ditempatkan di area header asli Word.
+        $header = $section->addHeader();
         if (file_exists($logoPath)) {
-            $section->addImage($logoPath, [
-                'width' => 140,
+            $header->addImage($logoPath, [
+                'width' => 120,
                 'alignment' => Jc::CENTER,
             ]);
         }
+
+        // Footer: alamat dan kontak ditempatkan di footer agar selalu rata bawah halaman.
+        $footer = $section->addFooter();
+        $footer->addText(str_repeat('_', 90), ['size' => 8], $center);
+        $footer->addText('Jl. Umban Sari No.1, Umban Sari, Kec. Rumbai, Kota Pekanbaru, Riau 28265', ['size' => 9], $center);
+        $footer->addText('(0761) 53939 | pcr.ac.id', ['size' => 9], $center);
 
         $section->addTextBreak(1);
         $section->addText('BERITA ACARA ASESMEN RPL', ['bold' => true, 'size' => 14], $center);
         $section->addTextBreak(1);
 
-        $metaTable = $section->addTable(['borderSize' => 0, 'cellMargin' => 40]);
+        $phpWord->addTableStyle('BaMetaTable', [
+            'borderSize' => 6,
+            'borderColor' => '000000',
+            'cellMargin' => 45,
+        ]);
+        $metaTable = $section->addTable('BaMetaTable');
         $metaRows = [
             ['Nama Asesor', $payload['asesor']->user?->nama ?? '—'],
             ['Tahun Ajaran', $payload['tahunAjaran']->nama ?? '—'],
@@ -328,8 +345,8 @@ class BerkasController extends Controller
 
         foreach ($metaRows as [$label, $value]) {
             $metaTable->addRow();
-            $metaTable->addCell(2500)->addText($label, ['size' => 11]);
-            $metaTable->addCell(300)->addText(':', ['size' => 11], $center);
+            $metaTable->addCell(2500)->addText($label, ['size' => 10]);
+            $metaTable->addCell(320)->addText(':', ['size' => 10], $center);
             $metaTable->addCell(9000)->addText((string) $value, ['size' => 11]);
         }
 
@@ -337,11 +354,12 @@ class BerkasController extends Controller
         $section->addText('Total peserta terjadwal: ' . $payload['rows']->count(), ['size' => 11]);
         $section->addTextBreak(1);
 
-        $table = $section->addTable([
+        $phpWord->addTableStyle('BaPesertaTable', [
             'borderSize' => 6,
             'borderColor' => '000000',
             'cellMargin' => 80,
         ]);
+        $table = $section->addTable('BaPesertaTable');
 
         $headerStyle = ['bold' => true, 'size' => 10];
         $table->addRow();
@@ -369,13 +387,19 @@ class BerkasController extends Controller
             }
         }
 
+        // Area tanda tangan dibuat tanpa border agar tidak terlihat seperti tabel kasar.
         $section->addTextBreak(2);
-        $ttdTable = $section->addTable(['borderSize' => 0, 'cellMargin' => 40]);
+        $phpWord->addTableStyle('BaTtdTable', [
+            'borderSize' => 0,
+            'borderColor' => 'FFFFFF',
+            'cellMargin' => 10,
+        ]);
+        $ttdTable = $section->addTable('BaTtdTable');
         $ttdTable->addRow();
-        $cellKiri = $ttdTable->addCell(5500);
-        $cellKanan = $ttdTable->addCell(5500);
+        $cellKiri = $ttdTable->addCell(5500, ['borderSize' => 0, 'borderColor' => 'FFFFFF']);
+        $cellKanan = $ttdTable->addCell(5500, ['borderSize' => 0, 'borderColor' => 'FFFFFF']);
 
-        $cellKiri->addText($payload['penandatanganKiri']?->jabatan ?? 'Mengetahui,', ['size' => 11]);
+        $cellKiri->addText($payload['penandatanganKiri']?->jabatan ?? 'Mengetahui,', ['size' => 11], $left);
         $cellKiri->addTextBreak(1);
         if ($payload['penandatanganKiri']?->tanda_tangan && Storage::disk('local')->exists($payload['penandatanganKiri']->tanda_tangan)) {
             $cellKiri->addImage(Storage::disk('local')->path($payload['penandatanganKiri']->tanda_tangan), [
@@ -386,12 +410,12 @@ class BerkasController extends Controller
         } else {
             $cellKiri->addTextBreak(3);
         }
-        $cellKiri->addText($payload['penandatanganKiri']?->nama ?? '____________________', ['bold' => true, 'size' => 11]);
+        $cellKiri->addText($payload['penandatanganKiri']?->nama ?? '____________________', ['bold' => true, 'size' => 11], $left);
         if ($payload['penandatanganKiri']?->nip) {
-            $cellKiri->addText('NIP. ' . $payload['penandatanganKiri']->nip, ['size' => 10]);
+            $cellKiri->addText('NIP. ' . $payload['penandatanganKiri']->nip, ['size' => 10], $left);
         }
 
-        $cellKanan->addText('Asesor,', ['size' => 11]);
+        $cellKanan->addText('Asesor,', ['size' => 11], $left);
         $cellKanan->addTextBreak(1);
         if ($payload['asesor']?->tanda_tangan && Storage::disk('local')->exists($payload['asesor']->tanda_tangan)) {
             $cellKanan->addImage(Storage::disk('local')->path($payload['asesor']->tanda_tangan), [
@@ -402,15 +426,10 @@ class BerkasController extends Controller
         } else {
             $cellKanan->addTextBreak(3);
         }
-        $cellKanan->addText($payload['asesor']?->user?->nama ?? '____________________', ['bold' => true, 'size' => 11]);
+        $cellKanan->addText($payload['asesor']?->user?->nama ?? '____________________', ['bold' => true, 'size' => 11], $left);
         if ($payload['asesor']?->nidn) {
-            $cellKanan->addText('NIDN. ' . $payload['asesor']->nidn, ['size' => 10]);
+            $cellKanan->addText('NIDN. ' . $payload['asesor']->nidn, ['size' => 10], $left);
         }
-
-        $section->addTextBreak(1);
-        $section->addText(str_repeat('-', 110), ['size' => 9], $center);
-        $section->addText('Jl. Umban Sari No.1, Umban Sari, Kec. Rumbai, Kota Pekanbaru, Riau 28265', ['size' => 10], $center);
-        $section->addText('(0761) 53939 | pcr.ac.id', ['size' => 10], $center);
 
         $filename = $this->buildBeritaAcaraDinamisFilename($payload['asesor'], $payload['tahunAjaran'], 'docx');
         $tmpPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $filename;

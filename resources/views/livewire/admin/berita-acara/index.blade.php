@@ -179,14 +179,14 @@ new #[Layout('components.layouts.admin')] class extends Component {
         <div class="grid grid-cols-1 lg:grid-cols-[1fr_1fr_auto] gap-3">
             <div>
                 <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">Tanggal Asesi Dari</label>
-                <x-form.date-picker x-model="$wire.filterTanggalDari"
+                <x-form.date-picker wire:model.live="filterTanggalDari"
                                     placeholder="Pilih tanggal mulai..."
                                     :enable-time="false"
                                     class="w-full" />
             </div>
             <div>
                 <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">Tanggal Asesi Sampai</label>
-                <x-form.date-picker x-model="$wire.filterTanggalSampai"
+                <x-form.date-picker wire:model.live="filterTanggalSampai"
                                     placeholder="Pilih tanggal akhir..."
                                     :enable-time="false"
                                     class="w-full" />
