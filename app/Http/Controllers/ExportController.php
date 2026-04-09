@@ -131,14 +131,14 @@ class ExportController extends Controller
         );
 
         $nilaiKonversi = app(NilaiKonversiService::class);
-        $ttdKiri  = Penandatangan::where('posisi', 'kiri')->where('aktif', true)->orderBy('urutan')->first();
-        $ttdKanan = Penandatangan::where('posisi', 'kanan')->where('aktif', true)->orderBy('urutan')->first();
+        $ttdWadir      = Penandatangan::where('posisi', 'wadir')->where('aktif', true)->orderBy('urutan')->first();
+        $prodiKetua    = $permohonan->programStudi;
 
         if ($permohonan->jenis_rpl === JenisRplEnum::RplI) {
-            $export   = new TransferHasilWordExport($nilaiKonversi, $ttdKiri, $ttdKanan);
+            $export   = new TransferHasilWordExport($nilaiKonversi, $ttdWadir, $prodiKetua);
             $jenisStr = 'Transfer';
         } else {
-            $export   = new PerolehanHasilWordExport($nilaiKonversi, $ttdKiri, $ttdKanan);
+            $export   = new PerolehanHasilWordExport($nilaiKonversi, $ttdWadir, $prodiKetua);
             $jenisStr = 'Perolehan';
         }
 

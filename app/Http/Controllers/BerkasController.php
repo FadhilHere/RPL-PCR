@@ -8,6 +8,7 @@ use App\Models\BeritaAcara;
 use App\Models\DokumenBukti;
 use App\Models\Penandatangan;
 use App\Models\Peserta;
+use App\Models\ProgramStudi;
 use App\Models\VerifikasiBersama;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
@@ -173,6 +174,18 @@ class BerkasController extends Controller
         return response()->file(
             Storage::disk('local')->path($asesor->tanda_tangan),
             ['Content-Type' => Storage::disk('local')->mimeType($asesor->tanda_tangan)]
+        );
+    }
+
+    public function viewTtdProgramStudi(ProgramStudi $programStudi)
+    {
+        $user = auth()->user();
+        abort_if(! in_array($user->role, [RoleEnum::Admin, RoleEnum::AdminBaak, RoleEnum::AdminPmb, RoleEnum::Asesor]), 403);
+        abort_if(! $programStudi->ketua_tanda_tangan || ! Storage::disk('local')->exists($programStudi->ketua_tanda_tangan), 404);
+
+        return response()->file(
+            Storage::disk('local')->path($programStudi->ketua_tanda_tangan),
+            ['Content-Type' => Storage::disk('local')->mimeType($programStudi->ketua_tanda_tangan)]
         );
     }
 }

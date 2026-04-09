@@ -7,6 +7,7 @@ use App\Enums\NilaiHurufEnum;
 use App\Enums\StatusRplMataKuliahEnum;
 use App\Models\Penandatangan;
 use App\Models\PermohonanRpl;
+use App\Models\ProgramStudi;
 use App\Services\NilaiKonversiService;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpWord\Element\Section;
@@ -16,8 +17,8 @@ class TransferHasilWordExport
 {
     public function __construct(
         private readonly NilaiKonversiService $nilaiKonversi,
-        private readonly ?Penandatangan $penandatanganKiri  = null,
-        private readonly ?Penandatangan $penandatanganKanan = null,
+        private readonly ?Penandatangan $penandatanganWadir = null,
+        private readonly ?ProgramStudi $programStudiKetua   = null,
     ) {}
 
     public function generate(PermohonanRpl $permohonan): PhpWord
@@ -127,25 +128,26 @@ class TransferHasilWordExport
         $center          = ['alignment' => 'center'];
 
         $table->addRow(400);
-        $table->addCell(900, $headerCellStyle)->addText('Kode MK Asal', $headerTextStyle, $center);
+        $table->addCell(900,  $headerCellStyle)->addText('Kode MK Asal', $headerTextStyle, $center);
         $table->addCell(2200, $headerCellStyle)->addText('Mata Kuliah Asal', $headerTextStyle, $center);
-        $table->addCell(500, $headerCellStyle)->addText('SKS', $headerTextStyle, $center);
-        $table->addCell(700, $headerCellStyle)->addText('Nilai Huruf', $headerTextStyle, $center);
-        $table->addCell(900, $headerCellStyle)->addText('Kode MK Tujuan', $headerTextStyle, $center);
+        $table->addCell(500,  $headerCellStyle)->addText('SKS', $headerTextStyle, $center);
+        $table->addCell(700,  $headerCellStyle)->addText('Nilai Huruf', $headerTextStyle, $center);
+        $table->addCell(900,  $headerCellStyle)->addText('Kode MK Tujuan', $headerTextStyle, $center);
         $table->addCell(2200, $headerCellStyle)->addText('Mata Kuliah Tujuan', $headerTextStyle, $center);
-        $table->addCell(500, $headerCellStyle)->addText('SKS', $headerTextStyle, $center);
-        $table->addCell(700, $headerCellStyle)->addText('Nilai Huruf', $headerTextStyle, $center);
-        $table->addCell(700, $headerCellStyle)->addText('Status', $headerTextStyle, $center);
+        $table->addCell(500,  $headerCellStyle)->addText('SKS', $headerTextStyle, $center);
+        $table->addCell(700,  $headerCellStyle)->addText('Nilai Huruf', $headerTextStyle, $center);
 
-        $cellStyle = ['size' => 9];
+        $cellStyle  = ['size' => 9];
         $cellCenter = ['alignment' => 'center'];
 
-        foreach ($permohonan->rplMataKuliah as $rplMk) {
-            $mk          = $rplMk->mataKuliah;
-            $lampauList  = $rplMk->matkulLampau;
+        // Only show MK with status Diakui
+        $mkDiakui = $permohonan->rplMataKuliah
+            ->where('status', StatusRplMataKuliahEnum::Diakui);
+
+        foreach ($mkDiakui as $rplMk) {
+            $mk         = $rplMk->mataKuliah;
+            $lampauList = $rplMk->matkulLampau;
             $nilaiTujuan = $this->resolveNilai($rplMk);
-            $diakui      = $nilaiTujuan ? $nilaiTujuan->diakui() : null;
-            $statusTeks  = $diakui === null ? '—' : ($diakui ? 'Diakui' : 'Tidak Diakui');
 
             if ($lampauList->isNotEmpty()) {
                 foreach ($lampauList as $idx => $lampau) {
@@ -161,12 +163,10 @@ class TransferHasilWordExport
                         $table->addCell(2200)->addText($mk->nama ?? '', $cellStyle);
                         $table->addCell(500)->addText((string) ($mk->sks ?? ''), $cellStyle, $cellCenter);
                         $table->addCell(700)->addText($nilaiTujuan?->value ?? '', ['size' => 9, 'bold' => true], $cellCenter);
-                        $table->addCell(700)->addText($statusTeks, $cellStyle, $cellCenter);
                     } else {
                         $table->addCell(900)->addText('', $cellStyle);
                         $table->addCell(2200)->addText('', $cellStyle);
                         $table->addCell(500)->addText('', $cellStyle);
-                        $table->addCell(700)->addText('', $cellStyle);
                         $table->addCell(700)->addText('', $cellStyle);
                     }
                 }
@@ -181,20 +181,21 @@ class TransferHasilWordExport
                 $table->addCell(2200)->addText($mk->nama ?? '', $cellStyle);
                 $table->addCell(500)->addText((string) ($mk->sks ?? ''), $cellStyle, $cellCenter);
                 $table->addCell(700)->addText($nilaiTujuan?->value ?? '', ['size' => 9, 'bold' => true], $cellCenter);
-                $table->addCell(700)->addText($statusTeks, $cellStyle, $cellCenter);
             }
         }
     }
 
     private function addFooterTotals(Section $section, PermohonanRpl $permohonan): void
     {
-        $totalSksAsal = $permohonan->rplMataKuliah
+        // Only count from Diakui MK
+        $mkDiakui = $permohonan->rplMataKuliah
+            ->where('status', StatusRplMataKuliahEnum::Diakui);
+
+        $totalSksAsal = $mkDiakui
             ->flatMap(fn ($rplMk) => $rplMk->matkulLampau)
             ->sum('sks');
 
-        $sksDiakui = $permohonan->rplMataKuliah
-            ->where('status', StatusRplMataKuliahEnum::Diakui)
-            ->sum(fn ($rplMk) => $rplMk->mataKuliah->sks ?? 0);
+        $sksDiakui = $mkDiakui->sum(fn ($rplMk) => $rplMk->mataKuliah->sks ?? 0);
 
         $totalSksProdi = $permohonan->programStudi?->total_sks ?? 0;
 
@@ -228,26 +229,26 @@ class TransferHasilWordExport
         $cellKiri  = $table->addCell(4000);
         $cellKanan = $table->addCell(4000);
 
-        // Kiri
+        // Kiri: Wakil Direktur
         $cellKiri->addText('Mengetahui,', ['size' => 10]);
-        $cellKiri->addText($this->penandatanganKiri?->jabatan ?? '', ['size' => 10]);
+        $cellKiri->addText($this->penandatanganWadir?->jabatan ?? 'Wakil Direktur Bidang Akademik', ['size' => 10]);
         $cellKiri->addTextBreak(1);
-        $this->addTtdImage($cellKiri, $this->penandatanganKiri?->tanda_tangan ?? null);
+        $this->addTtdImage($cellKiri, $this->penandatanganWadir?->tanda_tangan ?? null);
         $cellKiri->addTextBreak(1);
-        $cellKiri->addText($this->penandatanganKiri?->nama ?? '', ['bold' => true, 'size' => 10]);
-        if ($this->penandatanganKiri?->nip) {
-            $cellKiri->addText('NIP. ' . $this->penandatanganKiri->nip, ['size' => 10]);
+        $cellKiri->addText($this->penandatanganWadir?->nama ?? '', ['bold' => true, 'size' => 10]);
+        if ($this->penandatanganWadir?->nip) {
+            $cellKiri->addText('NIP. ' . $this->penandatanganWadir->nip, ['size' => 10]);
         }
 
-        // Kanan
+        // Kanan: Ketua Program Studi
         $cellKanan->addText('Pekanbaru, ' . $tanggal, ['size' => 10]);
-        $cellKanan->addText($this->penandatanganKanan?->jabatan ?? '', ['size' => 10]);
+        $cellKanan->addText($this->programStudiKetua?->ketua_jabatan ?? 'Ketua Program Studi', ['size' => 10]);
         $cellKanan->addTextBreak(1);
-        $this->addTtdImage($cellKanan, $this->penandatanganKanan?->tanda_tangan ?? null);
+        $this->addTtdImage($cellKanan, $this->programStudiKetua?->ketua_tanda_tangan ?? null);
         $cellKanan->addTextBreak(1);
-        $cellKanan->addText($this->penandatanganKanan?->nama ?? '', ['bold' => true, 'size' => 10]);
-        if ($this->penandatanganKanan?->nip) {
-            $cellKanan->addText('NIP. ' . $this->penandatanganKanan->nip, ['size' => 10]);
+        $cellKanan->addText($this->programStudiKetua?->ketua_nama ?? '', ['bold' => true, 'size' => 10]);
+        if ($this->programStudiKetua?->ketua_nip) {
+            $cellKanan->addText('NIP. ' . $this->programStudiKetua->ketua_nip, ['size' => 10]);
         }
     }
 
@@ -260,10 +261,10 @@ class TransferHasilWordExport
                     ['width' => 100, 'height' => 50, 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::START]
                 );
             } catch (\Exception) {
-                $cell->addTextBreak(3); // fallback jika gambar gagal dimuat
+                $cell->addTextBreak(3);
             }
         } else {
-            $cell->addTextBreak(3); // ruang kosong untuk tanda tangan
+            $cell->addTextBreak(3);
         }
     }
 

@@ -7,6 +7,7 @@ use App\Enums\NilaiHurufEnum;
 use App\Enums\StatusRplMataKuliahEnum;
 use App\Models\Penandatangan;
 use App\Models\PermohonanRpl;
+use App\Models\ProgramStudi;
 use App\Services\NilaiKonversiService;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpWord\Element\Section;
@@ -16,8 +17,8 @@ class PerolehanHasilWordExport
 {
     public function __construct(
         private readonly NilaiKonversiService $nilaiKonversi,
-        private readonly ?Penandatangan $penandatanganKiri  = null,
-        private readonly ?Penandatangan $penandatanganKanan = null,
+        private readonly ?Penandatangan $penandatanganWadir = null,
+        private readonly ?ProgramStudi $programStudiKetua   = null,
     ) {}
 
     public function generate(PermohonanRpl $permohonan): PhpWord
@@ -214,24 +215,26 @@ class PerolehanHasilWordExport
         $cellKiri  = $table->addCell(4000);
         $cellKanan = $table->addCell(4000);
 
+        // Kiri: Wakil Direktur
         $cellKiri->addText('Mengetahui,', ['size' => 10]);
-        $cellKiri->addText($this->penandatanganKiri?->jabatan ?? '', ['size' => 10]);
+        $cellKiri->addText($this->penandatanganWadir?->jabatan ?? 'Wakil Direktur Bidang Akademik', ['size' => 10]);
         $cellKiri->addTextBreak(1);
-        $this->addTtdImage($cellKiri, $this->penandatanganKiri?->tanda_tangan ?? null);
+        $this->addTtdImage($cellKiri, $this->penandatanganWadir?->tanda_tangan ?? null);
         $cellKiri->addTextBreak(1);
-        $cellKiri->addText($this->penandatanganKiri?->nama ?? '', ['bold' => true, 'size' => 10]);
-        if ($this->penandatanganKiri?->nip) {
-            $cellKiri->addText('NIP. ' . $this->penandatanganKiri->nip, ['size' => 10]);
+        $cellKiri->addText($this->penandatanganWadir?->nama ?? '', ['bold' => true, 'size' => 10]);
+        if ($this->penandatanganWadir?->nip) {
+            $cellKiri->addText('NIP. ' . $this->penandatanganWadir->nip, ['size' => 10]);
         }
 
+        // Kanan: Ketua Program Studi
         $cellKanan->addText('Pekanbaru, ' . $tanggal, ['size' => 10]);
-        $cellKanan->addText($this->penandatanganKanan?->jabatan ?? '', ['size' => 10]);
+        $cellKanan->addText($this->programStudiKetua?->ketua_jabatan ?? 'Ketua Program Studi', ['size' => 10]);
         $cellKanan->addTextBreak(1);
-        $this->addTtdImage($cellKanan, $this->penandatanganKanan?->tanda_tangan ?? null);
+        $this->addTtdImage($cellKanan, $this->programStudiKetua?->ketua_tanda_tangan ?? null);
         $cellKanan->addTextBreak(1);
-        $cellKanan->addText($this->penandatanganKanan?->nama ?? '', ['bold' => true, 'size' => 10]);
-        if ($this->penandatanganKanan?->nip) {
-            $cellKanan->addText('NIP. ' . $this->penandatanganKanan->nip, ['size' => 10]);
+        $cellKanan->addText($this->programStudiKetua?->ketua_nama ?? '', ['bold' => true, 'size' => 10]);
+        if ($this->programStudiKetua?->ketua_nip) {
+            $cellKanan->addText('NIP. ' . $this->programStudiKetua->ketua_nip, ['size' => 10]);
         }
     }
 

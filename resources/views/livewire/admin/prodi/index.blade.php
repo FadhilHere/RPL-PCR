@@ -2,12 +2,14 @@
 
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 use Illuminate\Validation\Rule;
 use App\Models\ProgramStudi;
+use Illuminate\Support\Facades\Storage;
 
 new #[Layout('components.layouts.admin')] class extends Component {
-    use WithPagination;
+    use WithPagination, WithFileUploads;
 
     public string $search = '';
 
@@ -26,8 +28,12 @@ new #[Layout('components.layouts.admin')] class extends Component {
         ];
     }
 
-    public function saveProdi(?int $id, string $kode, string $nama, string $jenjang, int $totalSks): void
-    {
+    public $ttdKetua = null;
+
+    public function saveProdi(
+        ?int $id, string $kode, string $nama, string $jenjang, int $totalSks,
+        string $ketuaNama = '', string $ketuaNip = '', string $ketuaJabatan = ''
+    ): void {
         $validator = validator(
             compact('kode', 'nama', 'jenjang', 'totalSks'),
             [
@@ -49,23 +55,49 @@ new #[Layout('components.layouts.admin')] class extends Component {
             ]
         );
 
+        if ($this->ttdKetua) {
+            $this->validate(['ttdKetua' => 'image|mimes:jpg,jpeg,png|max:2048']);
+        }
+
         if ($validator->fails()) {
             $this->dispatch('prodi-validation-errors', errors: $validator->errors()->toArray());
             return;
         }
 
         $data = [
-            'kode'      => strtoupper(trim($kode)),
-            'nama'      => trim($nama),
-            'jenjang'   => $jenjang,
-            'total_sks' => $totalSks,
+            'kode'           => strtoupper(trim($kode)),
+            'nama'           => trim($nama),
+            'jenjang'        => $jenjang,
+            'total_sks'      => $totalSks,
+            'ketua_nama'     => trim($ketuaNama) ?: null,
+            'ketua_nip'      => trim($ketuaNip) ?: null,
+            'ketua_jabatan'  => trim($ketuaJabatan) ?: 'Ketua Program Studi',
         ];
 
-        $id
-            ? ProgramStudi::findOrFail($id)->update($data)
+        $prodi = $id
+            ? tap(ProgramStudi::findOrFail($id))->update($data)
             : ProgramStudi::create($data + ['aktif' => true]);
 
+        if ($this->ttdKetua) {
+            if ($prodi->ketua_tanda_tangan && Storage::disk('local')->exists($prodi->ketua_tanda_tangan)) {
+                Storage::disk('local')->delete($prodi->ketua_tanda_tangan);
+            }
+            $ext  = $this->ttdKetua->getClientOriginalExtension();
+            $path = $this->ttdKetua->storeAs('program_studi', 'ttd_' . $prodi->id . '.' . $ext, 'local');
+            $prodi->update(['ketua_tanda_tangan' => $path]);
+        }
+
+        $this->ttdKetua = null;
         $this->dispatch('prodi-saved');
+    }
+
+    public function hapusTtdKetua(int $id): void
+    {
+        $prodi = ProgramStudi::findOrFail($id);
+        if ($prodi->ketua_tanda_tangan && Storage::disk('local')->exists($prodi->ketua_tanda_tangan)) {
+            Storage::disk('local')->delete($prodi->ketua_tanda_tangan);
+        }
+        $prodi->update(['ketua_tanda_tangan' => null]);
     }
 
     public function toggleAktif(int $id): void
@@ -87,40 +119,54 @@ new #[Layout('components.layouts.admin')] class extends Component {
     x-data="{
         modal: false,
         confirm: { open: false, id: null, nama: '' },
+        confirmTtd: { open: false, id: null, nama: '' },
         editId: null,
+        editProdiId: null,
         errors: {},
-        form: { kode: '', nama: '', jenjang: 'D4', totalSks: '' },
+        form: { kode: '', nama: '', jenjang: 'D4', totalSks: '', ketuaNama: '', ketuaNip: '', ketuaJabatan: 'Ketua Program Studi' },
         jenjangOpen: false,
         jenjangOptions: ['D3', 'D4', 'S2'],
 
         openTambah() {
             this.editId = null;
+            this.editProdiId = null;
             this.errors = {};
-            this.form = { kode: '', nama: '', jenjang: 'D4', totalSks: '' };
+            this.form = { kode: '', nama: '', jenjang: 'D4', totalSks: '', ketuaNama: '', ketuaNip: '', ketuaJabatan: 'Ketua Program Studi' };
             this.modal = true;
         },
         openEdit(prodi) {
             this.editId = prodi.id;
+            this.editProdiId = prodi.id;
             this.errors = {};
             this.form = {
                 kode: prodi.kode,
                 nama: prodi.nama,
                 jenjang: prodi.jenjang,
                 totalSks: prodi.total_sks,
+                ketuaNama: prodi.ketua_nama || '',
+                ketuaNip: prodi.ketua_nip || '',
+                ketuaJabatan: prodi.ketua_jabatan || 'Ketua Program Studi',
             };
             this.modal = true;
         },
         simpan() {
             this.errors = {};
-            $wire.saveProdi(this.editId, this.form.kode, this.form.nama, this.form.jenjang, parseInt(this.form.totalSks) || 0);
+            $wire.saveProdi(
+                this.editId, this.form.kode, this.form.nama, this.form.jenjang,
+                parseInt(this.form.totalSks) || 0,
+                this.form.ketuaNama, this.form.ketuaNip, this.form.ketuaJabatan
+            );
         },
         askDelete(id, nama) {
             this.confirm = { open: true, id, nama };
         },
+        askDeleteTtd(id, nama) {
+            this.confirmTtd = { open: true, id, nama };
+        },
     }"
-    @prodi-saved.window="modal = false; confirm.open = false;"
+    @prodi-saved.window="modal = false; confirm.open = false; confirmTtd.open = false;"
     @prodi-validation-errors.window="errors = $event.detail.errors"
-    @keydown.escape.window="modal = false; confirm.open = false; jenjangOpen = false"
+    @keydown.escape.window="modal = false; confirm.open = false; confirmTtd.open = false; jenjangOpen = false"
 >
 
     {{-- ===== TOOLBAR ===== --}}
@@ -151,6 +197,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
                     <th class="text-left px-5 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] w-[80px]">Jenjang</th>
                     <th class="text-left px-5 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] w-[90px]">Total SKS</th>
                     <th class="text-left px-5 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] w-[80px]">MK</th>
+                    <th class="text-left px-5 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] w-[130px]">TTD Ketua</th>
                     <th class="text-left px-5 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] w-[80px]">Status</th>
                     <th class="px-5 py-3 w-[100px]"></th>
                 </tr>
@@ -177,6 +224,19 @@ new #[Layout('components.layouts.admin')] class extends Component {
                         </a>
                     </td>
                     <td class="px-5 py-3.5">
+                        @if ($prodi->ketua_tanda_tangan)
+                        <a href="{{ route('berkas.ttd.program-studi', $prodi) }}" target="_blank" rel="noopener"
+                           class="inline-flex items-center gap-2 rounded-lg border border-[#E5E8EC] bg-[#F8FBFC] px-2 py-1 hover:border-primary/30 hover:bg-[#F1F8FA] transition-colors">
+                            <img src="{{ route('berkas.ttd.program-studi', $prodi) }}" alt="TTD Ketua {{ $prodi->nama }}"
+                                 class="h-8 w-auto max-w-[84px] object-contain" loading="lazy">
+                        </a>
+                        @else
+                        <span class="inline-flex items-center rounded-full bg-[#F1F3F4] text-[#7d8891] text-[10px] font-semibold px-2.5 py-1">
+                            Belum ada
+                        </span>
+                        @endif
+                    </td>
+                    <td class="px-5 py-3.5">
                         <button wire:click="toggleAktif({{ $prodi->id }})" wire:loading.attr="disabled" wire:target="toggleAktif({{ $prodi->id }})"
                                 class="text-[10px] font-semibold px-2.5 py-1 rounded-full transition-colors
                                        {{ $prodi->aktif
@@ -187,7 +247,13 @@ new #[Layout('components.layouts.admin')] class extends Component {
                     </td>
                     <td class="px-5 py-3.5">
                         <div class="flex items-center gap-1 justify-end">
-                            <button @click="openEdit(@js(['id' => $prodi->id, 'kode' => $prodi->kode, 'nama' => $prodi->nama, 'jenjang' => $prodi->jenjang, 'total_sks' => $prodi->total_sks]))"
+                            @if ($prodi->ketua_tanda_tangan)
+                            <button @click="askDeleteTtd({{ $prodi->id }}, '{{ addslashes($prodi->nama) }}')"
+                                    class="w-7 h-7 flex items-center justify-center rounded-md text-[#8a9ba8] hover:bg-[#FFF8E1] hover:text-[#b45309] transition-colors" title="Hapus TTD Ketua">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+                            </button>
+                            @endif
+                            <button @click="openEdit(@js(['id' => $prodi->id, 'kode' => $prodi->kode, 'nama' => $prodi->nama, 'jenjang' => $prodi->jenjang, 'total_sks' => $prodi->total_sks, 'ketua_nama' => $prodi->ketua_nama, 'ketua_nip' => $prodi->ketua_nip, 'ketua_jabatan' => $prodi->ketua_jabatan]))"
                                     class="w-7 h-7 flex items-center justify-center rounded-md text-[#8a9ba8] hover:bg-[#E8F4F8] hover:text-primary transition-colors" title="Edit">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
@@ -206,7 +272,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="7" class="px-5 py-12 text-center">
+                    <td colspan="8" class="px-5 py-12 text-center">
                         <div class="text-[13px] text-[#8a9ba8]">
                             {{ $search ? 'Tidak ada prodi yang cocok dengan pencarian.' : 'Belum ada program studi.' }}
                         </div>
@@ -318,6 +384,57 @@ new #[Layout('components.layouts.admin')] class extends Component {
                     <p x-show="errors.totalSks" x-text="errors.totalSks?.[0]" class="mt-1 text-[11px] text-[#c62828]" style="display:none"></p>
                 </div>
 
+                {{-- Divider Ketua Prodi --}}
+                <div class="pt-1 border-t border-[#F0F2F5]">
+                    <div class="text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.7px] mb-3">Ketua Program Studi (untuk berkas Word)</div>
+
+                    {{-- Nama Ketua --}}
+                    <div class="mb-3">
+                        <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">Nama Ketua <span class="normal-case font-normal text-[#b0bec5]">(opsional)</span></label>
+                        <input x-model="form.ketuaNama" type="text" placeholder="Nama lengkap ketua prodi"
+                               class="w-full h-[42px] px-3.5 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 placeholder:text-[#b0bec5]" />
+                    </div>
+
+                    {{-- NIP & Jabatan --}}
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">NIP</label>
+                            <input x-model="form.ketuaNip" type="text" placeholder="NIP jika ada"
+                                   class="w-full h-[42px] px-3.5 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 placeholder:text-[#b0bec5]" />
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">Jabatan</label>
+                            <input x-model="form.ketuaJabatan" type="text" placeholder="Ketua Program Studi"
+                                   class="w-full h-[42px] px-3.5 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 placeholder:text-[#b0bec5]" />
+                        </div>
+                    </div>
+
+                    {{-- Upload TTD Ketua --}}
+                    <div>
+                        <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">
+                            Tanda Tangan <span class="normal-case font-normal text-[#b0bec5]">(JPG/PNG, maks 2MB, opsional)</span>
+                        </label>
+                        <template x-if="editProdiId">
+                            @php $editingProdi = null; @endphp
+                            {{-- Preview TTD existing (rendered server-side per prodi via Livewire) --}}
+                        </template>
+                        <label class="flex items-center gap-2 px-3.5 py-2.5 border border-dashed border-[#D0D5DD] rounded-xl cursor-pointer hover:border-primary hover:bg-[#F8FBFC] transition-colors text-[12px] text-[#5a6a75]">
+                            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                            <span wire:loading.remove wire:target="ttdKetua">
+                                @if ($ttdKetua) {{ $ttdKetua->getClientOriginalName() }} @else Pilih gambar tanda tangan @endif
+                            </span>
+                            <span wire:loading wire:target="ttdKetua" class="text-[#8a9ba8]">Mengunggah...</span>
+                            <input type="file" wire:model="ttdKetua" accept=".jpg,.jpeg,.png" class="hidden">
+                        </label>
+                        @error('ttdKetua') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
+                        @if ($ttdKetua)
+                        <div class="mt-2 border border-[#E5E8EC] rounded-lg p-2 bg-[#F8FBFC] inline-block">
+                            <img src="{{ $ttdKetua->temporaryUrl() }}" alt="Preview TTD" class="h-12 object-contain">
+                        </div>
+                        @endif
+                    </div>
+                </div>
+
             </div>
 
             {{-- Footer --}}
@@ -381,6 +498,54 @@ new #[Layout('components.layouts.admin')] class extends Component {
                         wire:target="deleteProdi"
                         class="flex-1 h-[40px] bg-[#D2092F] hover:bg-[#b8082a] text-white text-[13px] font-semibold rounded-xl transition-colors disabled:opacity-60">
                     Hapus
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    {{-- ===== MODAL KONFIRMASI HAPUS TTD KETUA ===== --}}
+    <div x-show="confirmTtd.open" style="display:none"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-100"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         @click.self="confirmTtd.open = false">
+
+        <div x-show="confirmTtd.open"
+             x-transition:enter="transition ease-out duration-150"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-100"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+
+            <div class="flex flex-col items-center text-center">
+                <div class="w-10 h-10 rounded-full bg-[#FFF8E1] flex items-center justify-center mb-3">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
+                    </svg>
+                </div>
+                <h4 class="text-[14px] font-semibold text-[#1a2a35] mb-1">Hapus Tanda Tangan Ketua?</h4>
+                <p class="text-[12px] text-[#8a9ba8] leading-[1.6]">
+                    TTD ketua prodi <span class="font-semibold text-[#1a2a35]" x-text="'&quot;' + confirmTtd.nama + '&quot;'"></span> akan dihapus dari data program studi ini.
+                </p>
+            </div>
+
+            <div class="flex gap-3 mt-5">
+                <button @click="confirmTtd.open = false"
+                        class="flex-1 h-[40px] bg-white border border-[#D8DDE2] text-[#1a2a35] text-[13px] font-semibold rounded-xl hover:bg-[#F4F6F8] transition-colors">
+                    Batal
+                </button>
+                <button @click="$wire.hapusTtdKetua(confirmTtd.id); confirmTtd.open = false"
+                        wire:loading.attr="disabled"
+                        wire:target="hapusTtdKetua"
+                        class="flex-1 h-[40px] bg-[#b45309] hover:bg-[#92400e] text-white text-[13px] font-semibold rounded-xl transition-colors disabled:opacity-60">
+                    Hapus TTD
                 </button>
             </div>
 

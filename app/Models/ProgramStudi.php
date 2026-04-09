@@ -17,6 +17,10 @@ class ProgramStudi extends Model
         'total_sks',
         'aktif',
         'bidang',
+        'ketua_nama',
+        'ketua_nip',
+        'ketua_jabatan',
+        'ketua_tanda_tangan',
     ];
 
     protected function casts(): array

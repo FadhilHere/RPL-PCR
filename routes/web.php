@@ -90,6 +90,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('berita-acara/{beritaAcara}/download', [BerkasController::class, 'downloadBeritaAcara'])->name('asesor.berita-acara.download');
     Route::get('ttd/penandatangan/{penandatangan}', [BerkasController::class, 'viewTtdPenandatangan'])->name('berkas.ttd.penandatangan');
     Route::get('ttd/asesor/{asesor}', [BerkasController::class, 'viewTtdAsesor'])->name('berkas.ttd.asesor');
+    Route::get('ttd/program-studi/{programStudi}', [BerkasController::class, 'viewTtdProgramStudi'])->name('berkas.ttd.program-studi');
 });
 
 // ===================== LOGOUT =====================
