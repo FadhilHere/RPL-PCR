@@ -28,6 +28,7 @@ class PermohonanRpl extends Model
         'tahun_ajaran_id',
         'semester',
         'jenis_rpl',
+        'asesmen_submitted_at',
     ];
 
     protected function casts(): array
@@ -35,6 +36,7 @@ class PermohonanRpl extends Model
         return [
             'tanggal_pengajuan'            => 'datetime',
             'tanggal_verifikasi_pembayaran' => 'datetime',
+            'asesmen_submitted_at'          => 'datetime',
             'status'                        => StatusPermohonanEnum::class,
             'semester'                      => SemesterEnum::class,
             'jenis_rpl'                    => JenisRplEnum::class,

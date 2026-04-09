@@ -112,7 +112,7 @@
         @endif
 
         {{-- Berkas verifikasi --}}
-        @if (in_array($permohonan->status, [\App\Enums\StatusPermohonanEnum::DalamReview, \App\Enums\StatusPermohonanEnum::Disetujui]) && $latestVb?->berkas)
+        @if ($latestVb?->berkas && $latestVb?->status === \App\Enums\StatusVerifikasiEnum::Selesai)
         @php $vbExt = strtolower(pathinfo($latestVb->berkas, PATHINFO_EXTENSION)); $vbViewType = in_array($vbExt, ['jpg','jpeg','png']) ? 'image' : 'pdf'; @endphp
         <div class="{{ $latestVb ? 'border-t border-[#F0F2F5] pt-3 mt-1' : '' }} flex items-center gap-2">
             <svg class="w-4 h-4 text-primary shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

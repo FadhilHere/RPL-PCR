@@ -3,7 +3,6 @@
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use App\Models\PermohonanRpl;
-use App\Models\VerifikasiBersama;
 use App\Enums\StatusPermohonanEnum;
 
 new #[Layout('components.layouts.admin')] class extends Component {
@@ -18,8 +17,8 @@ new #[Layout('components.layouts.admin')] class extends Component {
 
         $aktif = PermohonanRpl::whereIn('status', [
             StatusPermohonanEnum::Diproses,
+            StatusPermohonanEnum::Asesmen,
             StatusPermohonanEnum::Verifikasi,
-            StatusPermohonanEnum::DalamReview,
         ])->count();
 
         $selesai = PermohonanRpl::whereIn('status', [
@@ -30,8 +29,8 @@ new #[Layout('components.layouts.admin')] class extends Component {
         $pengajuanTerbaru = PermohonanRpl::with(['peserta.user', 'programStudi'])
             ->whereIn('status', [
                 StatusPermohonanEnum::Diproses,
+                StatusPermohonanEnum::Asesmen,
                 StatusPermohonanEnum::Verifikasi,
-                StatusPermohonanEnum::DalamReview,
             ])
             ->orderByDesc('created_at')
             ->limit(7)

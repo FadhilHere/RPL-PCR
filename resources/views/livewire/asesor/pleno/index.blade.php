@@ -30,8 +30,8 @@ new #[Layout('components.layouts.asesor')] class extends Component {
             ->whereIn('program_studi_id', $prodiIds)
             ->whereIn('status', [
                 StatusPermohonanEnum::Diproses,
+                StatusPermohonanEnum::Asesmen,
                 StatusPermohonanEnum::Verifikasi,
-                StatusPermohonanEnum::DalamReview,
                 StatusPermohonanEnum::Disetujui,
                 StatusPermohonanEnum::Ditolak,
             ])
@@ -48,8 +48,8 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
         $statusOptions = collect([
             StatusPermohonanEnum::Diproses,
+            StatusPermohonanEnum::Asesmen,
             StatusPermohonanEnum::Verifikasi,
-            StatusPermohonanEnum::DalamReview,
             StatusPermohonanEnum::Disetujui,
             StatusPermohonanEnum::Ditolak,
         ])->mapWithKeys(fn($e) => [$e->value => $e->label()])->toArray();

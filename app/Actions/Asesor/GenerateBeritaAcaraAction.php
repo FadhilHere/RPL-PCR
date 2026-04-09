@@ -20,9 +20,10 @@ class GenerateBeritaAcaraAction
         $permohonanList = $asesor->permohonan()
             ->with(['peserta.user', 'rplMataKuliah'])
             ->whereIn('status', [
+                StatusPermohonanEnum::Asesmen,
                 StatusPermohonanEnum::Verifikasi,
-                StatusPermohonanEnum::DalamReview,
                 StatusPermohonanEnum::Disetujui,
+                StatusPermohonanEnum::Ditolak,
             ])
             ->where('tahun_ajaran_id', $tahunAjaran->id)
             ->get();

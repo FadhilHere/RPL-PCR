@@ -3,6 +3,7 @@
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use Livewire\WithFileUploads;
+use App\Actions\Asesor\FinalisasiPermohonanAction;
 use App\Actions\Asesor\HitungKeputusanMkAction;
 use App\Actions\Asesor\SelesaikanVerifikasiAction;
 use App\Actions\Asesor\SimpanStatusMkAction;
@@ -191,10 +192,22 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         $this->permohonan->load('rplMataKuliah.asesmenMandiri.evaluasiVatm');
     }
 
+    public function finalisasi(FinalisasiPermohonanAction $action): void
+    {
+        try {
+            $action->execute($this->permohonan);
+        } catch (\DomainException $e) {
+            $this->dispatch('notify-error', message: $e->getMessage());
+            return;
+        }
+
+        $this->redirect(route('asesor.pengajuan.index'), navigate: true);
+    }
+
     public function saveMkStatus(int $rplMkId, SimpanStatusMkAction $action): void
     {
         abort_if(! in_array($this->permohonan->status, [
-            StatusPermohonanEnum::DalamReview,
+            StatusPermohonanEnum::Asesmen,
             StatusPermohonanEnum::Disetujui,
         ]), 403);
 
@@ -486,13 +499,111 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     {{-- Berkas Pendukung Peserta --}}
     <x-pengajuan.berkas-pendukung :berkaslist="$permohonan->peserta->dokumenBukti" />
 
-    {{-- SKS Rekognisi Card (dalam_review + disetujui) --}}
-    @if (in_array($permohonan->status, [StatusPermohonanEnum::DalamReview, StatusPermohonanEnum::Disetujui]))
+    {{-- SKS Rekognisi Card (saat asesor sedang/selesai menilai) --}}
+    @if (in_array($permohonan->status, [StatusPermohonanEnum::Asesmen, StatusPermohonanEnum::Disetujui, StatusPermohonanEnum::Ditolak]))
     <x-pengajuan.sks-rekognisi :permohonan="$permohonan" />
     @endif
 
     {{-- Per MK --}}
     @include('livewire.asesor.evaluasi.partials.evaluasi-per-mk')
+
+    {{-- Tombol Selesai (Finalisasi Permohonan) --}}
+    @if ($permohonan->status === StatusPermohonanEnum::Asesmen)
+        @php
+            $sksDiakuiPreview = $permohonan->rplMataKuliah
+                ->where('status', StatusRplMataKuliahEnum::Diakui)
+                ->sum(fn ($mk) => $mk->mataKuliah->sks ?? 0);
+            $totalSksProdi   = $permohonan->programStudi->total_sks ?? 0;
+            $persenSks       = $totalSksProdi > 0 ? round($sksDiakuiPreview / $totalSksProdi * 100) : 0;
+            $akanDisetujui   = $totalSksProdi > 0 && $sksDiakuiPreview >= ($totalSksProdi * 0.5);
+            $masihMenunggu   = $permohonan->rplMataKuliah->contains(fn ($mk) => $mk->status === StatusRplMataKuliahEnum::Menunggu);
+        @endphp
+
+        <div x-data="{ openFinal: false }" class="mt-6 mb-4">
+            <div class="bg-white rounded-xl border border-[#E5E8EC] p-5 flex items-center justify-between gap-4">
+                <div>
+                    <div class="text-[14px] font-semibold text-[#1a2a35] mb-1">Selesaikan Penilaian</div>
+                    <div class="text-[12px] text-[#8a9ba8] leading-relaxed">
+                        Tekan tombol Selesai jika seluruh mata kuliah sudah dinilai.
+                        Permohonan akan dikunci dan diteruskan ke tahap berikutnya.
+                    </div>
+                </div>
+                <button type="button"
+                        @click="openFinal = true"
+                        @if($masihMenunggu) disabled @endif
+                        class="shrink-0 inline-flex items-center gap-2 h-[42px] px-5 bg-primary hover:bg-[#005f78] text-white text-[13px] font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    Selesai
+                </button>
+            </div>
+
+            {{-- Modal Konfirmasi Finalisasi --}}
+            <div x-show="openFinal" x-cloak
+                 class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                 x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+                 x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+                <div @click.outside="openFinal = false" @keydown.escape.window="openFinal = false"
+                     class="bg-white rounded-2xl shadow-xl w-full max-w-md"
+                     x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100">
+                    <div class="px-6 py-5 border-b border-[#F0F2F5]">
+                        <div class="text-[15px] font-semibold text-[#1a2a35]">Finalisasi Permohonan</div>
+                        <div class="text-[12px] text-[#8a9ba8] mt-1">Tindakan ini tidak dapat dibatalkan.</div>
+                    </div>
+                    <div class="px-6 py-5 space-y-3">
+                        <div class="bg-[#F4F6F8] rounded-lg p-4">
+                            <div class="text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] mb-1">SKS Diakui</div>
+                            <div class="text-[18px] font-semibold text-[#1a2a35]">
+                                {{ $sksDiakuiPreview }} / {{ $totalSksProdi }} SKS
+                                <span class="text-[12px] font-medium text-[#8a9ba8]">({{ $persenSks }}%)</span>
+                            </div>
+                        </div>
+                        <div class="text-[12px] leading-relaxed">
+                            @if ($masihMenunggu)
+                                <span class="text-[#c62828] font-semibold">Masih ada mata kuliah yang belum dinilai.</span>
+                                Lengkapi semua penilaian terlebih dahulu sebelum memfinalisasi.
+                            @elseif ($akanDisetujui)
+                                Berdasarkan rule 50% SKS, permohonan akan
+                                <span class="text-[#1e7e3e] font-semibold">DISETUJUI</span>.
+                            @else
+                                Berdasarkan rule 50% SKS, permohonan akan
+                                <span class="text-[#c62828] font-semibold">DITOLAK</span>
+                                karena SKS yang diakui di bawah 50%.
+                            @endif
+                        </div>
+                    </div>
+                    <div class="px-6 py-4 border-t border-[#F0F2F5] flex items-center justify-end gap-2">
+                        <button type="button" @click="openFinal = false"
+                                class="h-[38px] px-4 bg-white border border-[#D0D5DD] text-[#5a6a75] text-[13px] font-semibold rounded-lg hover:bg-[#F4F6F8] transition-colors">
+                            Batal
+                        </button>
+                        <button type="button"
+                                @click="$wire.finalisasi(); openFinal = false"
+                                @if($masihMenunggu) disabled @endif
+                                class="h-[38px] px-4 bg-primary hover:bg-[#005f78] text-white text-[13px] font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            Ya, Selesai
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Toast notifikasi error finalisasi --}}
+    <div x-data="{ show: false, msg: '' }"
+         @notify-error.window="msg = $event.detail.message; show = true; setTimeout(() => show = false, 4000)">
+        <div x-show="show" x-cloak
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 translate-y-2"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             class="fixed bottom-6 right-6 z-[9999] flex items-center gap-2.5 bg-[#c62828] text-white text-[12px] font-medium px-4 py-3 rounded-xl shadow-lg max-w-sm">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span x-text="msg"></span>
+        </div>
+    </div>
 
     {{-- Back + Resume --}}
     <div class="mt-2 flex items-center justify-between">

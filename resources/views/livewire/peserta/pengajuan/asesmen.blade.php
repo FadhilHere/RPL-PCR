@@ -77,9 +77,19 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         }
     }
 
+    private function canEdit(): bool
+    {
+        return in_array($this->permohonan->status, [
+                StatusPermohonanEnum::Diproses,
+                StatusPermohonanEnum::Asesmen,
+                StatusPermohonanEnum::Verifikasi,
+            ]) && $this->permohonan->asesmen_submitted_at === null;
+    }
+
     #[\Livewire\Attributes\Renderless]
     public function saveRating(int $rplMkId, int $pertanyaanId, int $nilai): void
     {
+        abort_if(! $this->canEdit(), 422);
         abort_if($nilai < 1 || $nilai > 5, 422);
 
         $isNew = !isset($this->pertanyaanRatings[$pertanyaanId]);
@@ -101,6 +111,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
 
     public function toggleMkSejenis(int $rplMkId): void
     {
+        abort_if(! $this->canEdit(), 403);
         $rplMk = RplMataKuliah::findOrFail($rplMkId);
         abort_if($rplMk->permohonan_rpl_id !== $this->permohonan->id, 403);
 
@@ -124,6 +135,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
 
     public function saveRow(int $rplMkId): void
     {
+        abort_if(! $this->canEdit(), 403);
         $row = $this->matkulLampau[$rplMkId] ?? null;
         if (! $row) return;
 
@@ -158,6 +170,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
 
     public function toggleBerkas(int $dokumenId, int $pertanyaanId, int $rplMkId): void
     {
+        abort_if(! $this->canEdit(), 403);
         $asm = AsesmenMandiri::where('rpl_mata_kuliah_id', $rplMkId)
             ->where('pertanyaan_id', $pertanyaanId)
             ->first();
@@ -181,6 +194,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
 
     public function removeBerkas(string $namaBerkas, int $pertanyaanId, int $rplMkId): void
     {
+        abort_if(! $this->canEdit(), 403);
         $asm = AsesmenMandiri::where('rpl_mata_kuliah_id', $rplMkId)
             ->where('pertanyaan_id', $pertanyaanId)
             ->first();
@@ -218,9 +232,9 @@ new #[Layout('components.layouts.peserta')] class extends Component {
     public function ajukan(): void
     {
         abort_if(! $this->isComplete(), 422);
-        abort_if($this->permohonan->status !== StatusPermohonanEnum::Diproses, 422);
+        abort_if(! $this->canEdit(), 422);
 
-        $this->permohonan->update(['status' => StatusPermohonanEnum::Verifikasi]);
+        $this->permohonan->update(['asesmen_submitted_at' => now()]);
 
         $this->redirect(route('peserta.pengajuan.index'), navigate: true);
     }
@@ -248,21 +262,27 @@ new #[Layout('components.layouts.peserta')] class extends Component {
     </div>
 
     @php
-        $isDraf      = $permohonan->status === StatusPermohonanEnum::Diproses;
+        $isDraf      = $this->canEdit();
         $total       = $this->totalPertanyaan();
         $dinilai     = $this->totalDinilai();
         $progress    = $total > 0 ? round($dinilai / $total * 100) : 0;
         $ratingLabels = []; // skala 1-5 tanpa label teks (Poin 6)
     @endphp
 
-    {{-- Banner read-only (asesmen sudah disubmit) --}}
+    {{-- Banner read-only (asesmen sudah disubmit / belum bisa diisi) --}}
     @if (! $isDraf)
     @php
-        $bannerColor = $permohonan->status === StatusPermohonanEnum::Diajukan
-            ? ['bg' => 'bg-[#FFF8E1] border-[#FFE082]', 'text' => 'text-[#b45309]', 'icon' => '#b45309',
-               'msg' => 'Menunggu admin memproses pengajuan — asesmen belum dapat diisi.']
-            : ['bg' => 'bg-[#E6F4EA] border-[#A8D5B5]', 'text' => 'text-[#1e7e3e]', 'icon' => '#1e7e3e',
-               'msg' => 'Asesmen mandiri telah disubmit — jawaban tidak dapat diubah.'];
+        $bannerColor = match(true) {
+            $permohonan->status === StatusPermohonanEnum::Diajukan
+                => ['bg' => 'bg-[#FFF8E1] border-[#FFE082]', 'text' => 'text-[#b45309]', 'icon' => '#b45309',
+                   'msg' => 'Menunggu admin memproses pengajuan — asesmen belum dapat diisi.'],
+            $permohonan->asesmen_submitted_at !== null
+                => ['bg' => 'bg-[#E6F4EA] border-[#A8D5B5]', 'text' => 'text-[#1e7e3e]', 'icon' => '#1e7e3e',
+                   'msg' => 'Asesmen mandiri telah disubmit — jawaban tidak dapat diubah.'],
+            default
+                => ['bg' => 'bg-[#F0F7FA] border-[#C5DDE5]', 'text' => 'text-primary', 'icon' => '#004B5F',
+                   'msg' => 'Permohonan telah selesai diproses.'],
+        };
     @endphp
     <div class="{{ $bannerColor['bg'] }} border rounded-xl px-4 py-3 mb-5 flex items-center gap-3">
         <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="{{ $bannerColor['icon'] }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -287,7 +307,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                  :style="`width: ${total > 0 ? Math.round((dinilai / total) * 100) : 0}%`"></div>
         </div>
         <div class="text-[11px] text-[#8a9ba8] mt-1.5">
-            @if (! $isDraf && $permohonan->status !== StatusPermohonanEnum::Diajukan)
+            @if (! $isDraf && $permohonan->asesmen_submitted_at !== null)
                 <span class="text-[#1e7e3e] font-medium">✓ Asesmen disubmit. Menunggu verifikasi bersama asesor.</span>
             @else
                 <template x-if="dinilai >= total">
@@ -596,6 +616,10 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         @elseif ($permohonan->status === StatusPermohonanEnum::Diajukan)
         <span class="text-[12px] font-medium px-3 py-1.5 rounded-lg bg-[#FFF8E1] text-[#b45309]">
             Menunggu admin memproses
+        </span>
+        @elseif ($permohonan->asesmen_submitted_at !== null)
+        <span class="text-[12px] font-medium px-3 py-1.5 rounded-lg bg-[#E6F4EA] text-[#1e7e3e]">
+            ✓ Asesmen Disubmit
         </span>
         @else
         <span class="text-[12px] font-medium px-3 py-1.5 rounded-lg {{ $permohonan->status->badgeClass() }}">

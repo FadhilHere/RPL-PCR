@@ -262,7 +262,7 @@
         @endif
 
         {{-- Set status MK / Rekomendasi otomatis --}}
-        @if (in_array($permohonan->status, [\App\Enums\StatusPermohonanEnum::DalamReview, \App\Enums\StatusPermohonanEnum::Disetujui]))
+        @if (in_array($permohonan->status, [\App\Enums\StatusPermohonanEnum::Asesmen, \App\Enums\StatusPermohonanEnum::Disetujui, \App\Enums\StatusPermohonanEnum::Ditolak]))
             @if (! ($rplMk->has_mk_sejenis && $rplMk->matkulLampau->isNotEmpty()))
                 {{-- Hanya tampilkan ringkasan rata-rata VATM jika bukan hybrid MK Lampau --}}
                 @php

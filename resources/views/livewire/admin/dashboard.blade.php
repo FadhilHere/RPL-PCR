@@ -17,8 +17,8 @@ new #[Layout('components.layouts.admin')] class extends Component {
             ->whereIn('status', [
                 StatusPermohonanEnum::Diajukan,
                 StatusPermohonanEnum::Diproses,
+                StatusPermohonanEnum::Asesmen,
                 StatusPermohonanEnum::Verifikasi,
-                StatusPermohonanEnum::DalamReview,
             ])->count();
 
         $belumDijadwalkan = PermohonanRpl::where('status', StatusPermohonanEnum::Diproses)
@@ -26,8 +26,8 @@ new #[Layout('components.layouts.admin')] class extends Component {
             ->count();
         $aktif          = PermohonanRpl::whereIn('status', [
             StatusPermohonanEnum::Diproses,
+            StatusPermohonanEnum::Asesmen,
             StatusPermohonanEnum::Verifikasi,
-            StatusPermohonanEnum::DalamReview,
         ])->count();
         $selesai        = PermohonanRpl::whereIn('status', [
             StatusPermohonanEnum::Disetujui,

@@ -17,8 +17,8 @@ new #[Layout('components.layouts.admin')] class extends Component {
             ->whereIn('status', [
                 StatusPermohonanEnum::Diajukan,
                 StatusPermohonanEnum::Diproses,
+                StatusPermohonanEnum::Asesmen,
                 StatusPermohonanEnum::Verifikasi,
-                StatusPermohonanEnum::DalamReview,
             ])
             ->count();
 

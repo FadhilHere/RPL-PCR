@@ -24,7 +24,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
         $query = (clone $baseQuery)
             ->with(['peserta.user', 'programStudi'])
-            ->whereIn('status', [StatusPermohonanEnum::Diproses, StatusPermohonanEnum::Verifikasi, StatusPermohonanEnum::DalamReview, StatusPermohonanEnum::Disetujui])
+            ->whereIn('status', [StatusPermohonanEnum::Diproses, StatusPermohonanEnum::Asesmen, StatusPermohonanEnum::Verifikasi, StatusPermohonanEnum::Disetujui, StatusPermohonanEnum::Ditolak])
             ->when($this->search, fn($q) => $q->whereHas('peserta.user', function ($q) {
                 $q->where('nama', 'like', "%{$this->search}%");
             }))
@@ -53,7 +53,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                    class="w-full h-[42px] pl-9 pr-4 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition" />
         </div>
         <x-form.select wire:model.live="filterStatus" placeholder="Semua Status"
-            :options="collect([\App\Enums\StatusPermohonanEnum::Diproses, \App\Enums\StatusPermohonanEnum::Verifikasi, \App\Enums\StatusPermohonanEnum::DalamReview, \App\Enums\StatusPermohonanEnum::Disetujui])->mapWithKeys(fn($e) => [$e->value => $e->label()])->all()"
+            :options="collect([\App\Enums\StatusPermohonanEnum::Diproses, \App\Enums\StatusPermohonanEnum::Asesmen, \App\Enums\StatusPermohonanEnum::Verifikasi, \App\Enums\StatusPermohonanEnum::Disetujui, \App\Enums\StatusPermohonanEnum::Ditolak])->mapWithKeys(fn($e) => [$e->value => $e->label()])->all()"
             class="w-[180px]" />
     </div>
 
@@ -92,7 +92,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                         @if ($isTransfer)
                         <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FFF3E0] text-[#b45309] mr-1.5">Transfer</span>
                         @endif
-                        @if ($p->status === StatusPermohonanEnum::DalamReview)
+                        @if (in_array($p->status, [StatusPermohonanEnum::Asesmen, StatusPermohonanEnum::Verifikasi]))
                         <a href="{{ $evalRoute }}"
                            class="text-[12px] font-semibold text-white bg-primary hover:bg-[#005f78] px-3.5 py-1.5 rounded-lg transition-colors no-underline">
                             {{ $isTransfer ? 'Nilai Transfer →' : 'Evaluasi VATM →' }}

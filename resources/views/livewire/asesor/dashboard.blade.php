@@ -21,11 +21,11 @@ new #[Layout('components.layouts.asesor')] class extends Component {
             ])->count();
 
         $butuhTindakan = (clone $baseQuery)
-            ->whereIn('status', [StatusPermohonanEnum::Diproses, StatusPermohonanEnum::Verifikasi])
+            ->where('status', StatusPermohonanEnum::Diproses)
             ->count();
 
-        $dalamReview = (clone $baseQuery)
-            ->where('status', StatusPermohonanEnum::DalamReview)
+        $sedangEvaluasi = (clone $baseQuery)
+            ->whereIn('status', [StatusPermohonanEnum::Asesmen, StatusPermohonanEnum::Verifikasi])
             ->count();
 
         $disetujui = (clone $baseQuery)
@@ -40,8 +40,8 @@ new #[Layout('components.layouts.asesor')] class extends Component {
             ->with(['peserta.user', 'programStudi'])
             ->whereIn('status', [
                 StatusPermohonanEnum::Diproses,
+                StatusPermohonanEnum::Asesmen,
                 StatusPermohonanEnum::Verifikasi,
-                StatusPermohonanEnum::DalamReview,
             ])
             ->orderByDesc('created_at')
             ->limit(5)
@@ -50,7 +50,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         $prodiList = $asesor ? $asesor->programStudi : collect();
 
         return compact(
-            'pengajuanAktif', 'butuhTindakan', 'dalamReview', 'disetujui', 'ditolak',
+            'pengajuanAktif', 'butuhTindakan', 'sedangEvaluasi', 'disetujui', 'ditolak',
             'pengajuanPerhatian', 'prodiList'
         );
     }
@@ -89,21 +89,21 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                 </div>
             </div>
             <div class="text-[28px] font-bold text-[#b45309] leading-none mb-1">{{ $butuhTindakan }}</div>
-            <div class="text-[11px] text-[#8a9ba8]">Diproses &amp; verifikasi</div>
+            <div class="text-[11px] text-[#8a9ba8]">Perlu dijadwalkan</div>
         </div>
 
-        {{-- Dalam Review --}}
+        {{-- Sedang Evaluasi --}}
         <div class="bg-white rounded-[10px] border border-[#E5E8EC] px-5 py-4">
             <div class="flex items-center justify-between mb-3">
-                <div class="text-[11px] font-medium text-[#8a9ba8]">Dalam Review</div>
+                <div class="text-[11px] font-medium text-[#8a9ba8]">Sedang Evaluasi</div>
                 <div class="w-8 h-8 rounded-lg bg-[#EEF2FF] flex items-center justify-center">
                     <svg class="w-4 h-4 text-[#6366f1]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
                     </svg>
                 </div>
             </div>
-            <div class="text-[28px] font-bold text-[#6366f1] leading-none mb-1">{{ $dalamReview }}</div>
-            <div class="text-[11px] text-[#8a9ba8]">Evaluasi VATM</div>
+            <div class="text-[28px] font-bold text-[#6366f1] leading-none mb-1">{{ $sedangEvaluasi }}</div>
+            <div class="text-[11px] text-[#8a9ba8]">Asesmen &amp; verifikasi</div>
         </div>
 
         {{-- Disetujui --}}

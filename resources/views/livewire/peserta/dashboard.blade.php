@@ -5,6 +5,7 @@ use Livewire\Volt\Component;
 use App\Models\PermohonanRpl;
 use App\Models\RplMataKuliah;
 use App\Models\DokumenBukti;
+use App\Enums\JenisRplEnum;
 use App\Enums\StatusPermohonanEnum;
 use App\Enums\StatusRplMataKuliahEnum;
 use App\Enums\StatusVerifikasiEnum;
@@ -57,11 +58,19 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                 ->first()
             : null;
 
+        $isTransfer = $permohonan?->jenis_rpl === JenisRplEnum::RplI;
+        $tahapAktifKey = $isTransfer
+            ? StatusPermohonanEnum::Verifikasi->value
+            : StatusPermohonanEnum::Asesmen->value;
+        $tahapAktifLabel = $isTransfer
+            ? 'Verifikasi Bersama Asesor'
+            : 'Asesmen oleh Asesor';
+
         $statusLabel = $permohonan ? match($permohonan->status) {
             StatusPermohonanEnum::Diajukan    => 'Permohonan Telah Diajukan',
             StatusPermohonanEnum::Diproses    => 'Asesmen Mandiri Dapat Dimulai',
-            StatusPermohonanEnum::Verifikasi  => 'Menunggu Verifikasi Bersama Asesor',
-            StatusPermohonanEnum::DalamReview => 'Sedang Dievaluasi oleh Asesor',
+            StatusPermohonanEnum::Asesmen     => 'Asesmen Sedang Berlangsung',
+            StatusPermohonanEnum::Verifikasi  => 'Verifikasi Bersama Asesor',
             StatusPermohonanEnum::Disetujui   => 'Permohonan Disetujui',
             StatusPermohonanEnum::Ditolak     => 'Permohonan Ditolak',
             default                           => $permohonan->status->label(),
@@ -70,31 +79,27 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         $sksDiakui    = $permohonan ? $permohonan->rplMataKuliah->where('status', StatusRplMataKuliahEnum::Diakui)->sum(fn($m) => $m->mataKuliah->sks) : 0;
         $sksTotalProdi = $permohonan ? ($permohonan->programStudi->total_sks ?? 0) : 0;
         $sksPersen    = $sksTotalProdi > 0 ? round($sksDiakui / $sksTotalProdi * 100) : 0;
-        $sksBarColor  = ($sksDiakui > floor($sksTotalProdi * 0.70)) ? '#e37400' : '#004B5F';
+        // Hijau jika ≥50% (akan disetujui), oranye jika di bawah threshold
+        $sksBarColor  = $sksPersen >= 50 ? '#1e7e3e' : '#e37400';
 
         $allStatuses  = [
             StatusPermohonanEnum::Diajukan->value,
             StatusPermohonanEnum::Diproses->value,
-            StatusPermohonanEnum::Verifikasi->value,
-            StatusPermohonanEnum::DalamReview->value,
+            $tahapAktifKey,
             StatusPermohonanEnum::Disetujui->value,
         ];
-        $effectiveVal = $permohonan && $permohonan->status === StatusPermohonanEnum::Disetujui && ! $semuaMkSelesai
-            ? StatusPermohonanEnum::DalamReview->value
-            : ($permohonan?->status?->value ?? StatusPermohonanEnum::Diajukan->value);
+        $effectiveVal = $permohonan?->status?->value ?? StatusPermohonanEnum::Diajukan->value;
         $statusOrder  = array_search($effectiveVal, $allStatuses);
         $stepLabels   = [
             StatusPermohonanEnum::Diajukan->value    => 'Pengajuan Dikirim',
             StatusPermohonanEnum::Diproses->value    => 'Asesmen Mandiri',
-            StatusPermohonanEnum::Verifikasi->value  => 'Verifikasi Bersama Asesor',
-            StatusPermohonanEnum::DalamReview->value => 'Evaluasi VATM oleh Asesor',
+            $tahapAktifKey                           => $tahapAktifLabel,
             StatusPermohonanEnum::Disetujui->value   => 'SK Rekognisi Diterbitkan',
         ];
         $stepDates    = [
             StatusPermohonanEnum::Diajukan->value    => $permohonan?->tanggal_pengajuan?->format('d M Y') ?? '—',
             StatusPermohonanEnum::Diproses->value    => 'Menunggu',
-            StatusPermohonanEnum::Verifikasi->value  => 'Menunggu',
-            StatusPermohonanEnum::DalamReview->value => 'Sedang berjalan',
+            $tahapAktifKey                           => 'Menunggu',
             StatusPermohonanEnum::Disetujui->value   => 'Menunggu',
         ];
 
@@ -140,7 +145,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
     </div>
 
     {{-- ===== JADWAL VERIFIKASI BERSAMA ===== --}}
-    @if ($jadwalVb && in_array($permohonan->status, [StatusPermohonanEnum::Diproses, StatusPermohonanEnum::Verifikasi]))
+    @if ($jadwalVb && in_array($permohonan->status, [StatusPermohonanEnum::Diproses, StatusPermohonanEnum::Asesmen, StatusPermohonanEnum::Verifikasi]))
     <div class="flex items-center gap-4 bg-white border border-[#D6EAF8] rounded-xl px-5 py-3.5 mb-5">
         <div class="w-9 h-9 rounded-lg bg-[#E8F4F8] flex items-center justify-center shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#004B5F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -192,7 +197,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                 [$badgeCls, $badgeLabel] = match(true) {
                     $mkStatus === StatusRplMataKuliahEnum::Diakui       => ['bg-[#E6F4EA] text-[#1e7e3e]', 'Diakui'],
                     $mkStatus === StatusRplMataKuliahEnum::TidakDiakui  => ['bg-[#FCE8E6] text-[#c62828]', 'Tidak Diakui'],
-                    $pStatus === StatusPermohonanEnum::DalamReview      => ['bg-[#FFF8E1] text-[#b45309]', 'Direview'],
+                    $pStatus === StatusPermohonanEnum::Asesmen           => ['bg-[#FFF8E1] text-[#b45309]', 'Asesmen'],
                     $pStatus === StatusPermohonanEnum::Verifikasi        => ['bg-[#FFF8E1] text-[#b45309]', 'Verifikasi'],
                     $pStatus === StatusPermohonanEnum::Diproses          => ['bg-[#E8F0FE] text-[#1557b0]', 'Diproses'],
                     $pStatus === StatusPermohonanEnum::Diajukan          => ['bg-[#E8F0FE] text-[#1557b0]', 'Diajukan'],
