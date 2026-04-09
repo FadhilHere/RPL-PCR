@@ -1,41 +1,68 @@
 @props([
     'options' => [],
     'placeholder' => null,
+    'searchable' => false,
+    'searchPlaceholder' => 'Cari opsi...',
 ])
 
 @php
     $wireModel = $attributes->wire('model');
     $modelName = $wireModel->value();
     $isLive = $wireModel->hasModifier('live');
+    $optionItems = collect($options)
+        ->map(fn($label, $value) => [
+            'value' => $value,
+            'key' => (string) $value,
+            'label' => $label,
+        ])
+        ->values();
 @endphp
 
 <div
     x-data="{
         open: false,
         value: $wire.entangle('{{ $modelName }}', {{ $isLive ? 'true' : 'false' }}),
-        options: {{ Js::from($options) }},
+        items: {{ Js::from($optionItems) }},
         hasPlaceholder: {{ $placeholder ? 'true' : 'false' }},
         placeholderText: {{ Js::from($placeholder ?? 'Pilih...') }},
+        searchable: {{ $searchable ? 'true' : 'false' }},
+        searchPlaceholder: {{ Js::from($searchPlaceholder) }},
+        searchTerm: '',
         rect: { top: 0, bottom: 0, left: 0, width: 0 },
         get isBlank() {
             return this.value === '' || this.value === null || this.value === undefined;
         },
         get label() {
-            const found = this.options[this.value] ?? this.options[String(this.value)];
-            if (found !== undefined) return found;
+            const selected = this.items.find((item) => item.key === String(this.value));
+            if (selected) return selected.label;
             if (this.isBlank) return this.placeholderText;
             return this.value;
         },
         get showMuted() {
             if (!this.isBlank) return false;
-            return this.hasPlaceholder || !('' in this.options);
+            return this.hasPlaceholder || !this.items.some((item) => item.key === '');
+        },
+        get filteredItems() {
+            if (!this.searchable || this.searchTerm.trim() === '') {
+                return this.items;
+            }
+
+            const keyword = this.searchTerm.toLowerCase();
+            return this.items.filter((item) => String(item.label).toLowerCase().includes(keyword));
         },
         openDropdown() {
             this.rect = this.$refs.btn.getBoundingClientRect();
+            this.searchTerm = '';
             this.open = true;
         },
         select(val) {
             this.value = val;
+            this.searchTerm = '';
+            this.open = false;
+        },
+        selectPlaceholder() {
+            this.value = '';
+            this.searchTerm = '';
             this.open = false;
         }
     }"
@@ -75,9 +102,18 @@
              x-transition:leave-end="opacity-0 -translate-y-1"
              class="bg-white border border-[#E0E5EA] rounded-xl shadow-lg overflow-hidden"
         >
+            <template x-if="searchable">
+                <div class="px-2.5 pt-2 pb-1 border-b border-[#F0F2F5]">
+                    <input type="text"
+                           x-model.debounce.300ms="searchTerm"
+                           :placeholder="searchPlaceholder"
+                           class="w-full h-[34px] px-3 text-[12px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-lg outline-none focus:border-[#004B5F] focus:ring-2 focus:ring-[#004B5F]/10 placeholder:text-[#b0bec5]" />
+                </div>
+            </template>
+
             <div class="py-1 max-h-[220px] overflow-y-auto">
                 @if ($placeholder)
-                <button type="button" @click="select('')"
+                <button type="button" @click="selectPlaceholder()"
                         class="w-full text-left px-3 py-2 text-[13px] transition-colors"
                         :class="isBlank
                             ? 'bg-[#E8F4F8] text-[#004B5F] font-semibold'
@@ -86,16 +122,24 @@
                     {{ $placeholder }}
                 </button>
                 @endif
-                @foreach ($options as $val => $label)
-                <button type="button" @click="select({{ Js::from($val) }})"
+
+                <template x-for="item in filteredItems" :key="item.key">
+                    <button type="button" @click="select(item.value)"
+                            class="w-full text-left px-3 py-2 text-[13px] transition-colors"
+                            :class="String(value) === item.key
+                                ? 'bg-[#E8F4F8] text-[#004B5F] font-semibold'
+                                : 'text-[#1a2a35] hover:bg-[#F4F6F8]'"
+                            x-text="item.label">
+                    </button>
+                </template>
+
+                <div x-show="filteredItems.length === 0"
                         class="w-full text-left px-3 py-2 text-[13px] transition-colors"
-                        :class="String(value) === {{ Js::from((string)$val) }}
-                            ? 'bg-[#E8F4F8] text-[#004B5F] font-semibold'
-                            : 'text-[#1a2a35] hover:bg-[#F4F6F8]'"
+                        style="display:none"
+                        :class="'text-[#8a9ba8]'"
                 >
-                    {{ $label }}
-                </button>
-                @endforeach
+                    Tidak ada opsi yang cocok.
+                </div>
             </div>
         </div>
     </template>
