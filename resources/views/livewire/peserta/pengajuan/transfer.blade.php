@@ -74,10 +74,21 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         abort_if(! $this->canEdit(), 422);
         abort_if($nilai < 1 || $nilai > 5, 422);
 
+        $rplMk = $this->permohonan->rplMataKuliah()
+            ->whereKey($rplMkId)
+            ->firstOrFail();
+
+        $pertanyaanValid = \App\Models\Pertanyaan::query()
+            ->whereKey($pertanyaanId)
+            ->where('mata_kuliah_id', $rplMk->mata_kuliah_id)
+            ->exists();
+
+        abort_if(! $pertanyaanValid, 422);
+
         $this->pertanyaanRatings[$pertanyaanId] = $nilai;
 
         AsesmenMandiri::updateOrCreate(
-            ['rpl_mata_kuliah_id' => $rplMkId, 'pertanyaan_id' => $pertanyaanId],
+            ['rpl_mata_kuliah_id' => $rplMk->id, 'pertanyaan_id' => $pertanyaanId],
             ['penilaian_diri' => $nilai]
         );
         $this->dispatch('progress-updated', dinilai: $this->totalDinilai(), total: $this->totalPertanyaan());
@@ -110,6 +121,10 @@ new #[Layout('components.layouts.peserta')] class extends Component {
     public function saveRow(int $rplMkId): void
     {
         abort_if(! $this->canEdit(), 403);
+        $rplMk = $this->permohonan->rplMataKuliah()
+            ->whereKey($rplMkId)
+            ->firstOrFail();
+
         $row = $this->matkulLampau[$rplMkId] ?? null;
         if (! $row) return;
 
@@ -127,16 +142,27 @@ new #[Layout('components.layouts.peserta')] class extends Component {
 
         $nilaiHuruf = $row['nilai_huruf'] !== '' ? $row['nilai_huruf'] : null;
 
-        $ml = MatkulLampau::updateOrCreate(
-            ['id' => $row['id'] ?: 0],
-            [
-                'rpl_mata_kuliah_id' => $rplMkId,
+        if (!empty($row['id'])) {
+            $ml = MatkulLampau::query()
+                ->whereKey((int) $row['id'])
+                ->where('rpl_mata_kuliah_id', $rplMk->id)
+                ->firstOrFail();
+
+            $ml->update([
+                'kode_mk'     => $row['kode_mk'],
+                'nama_mk'     => $row['nama_mk'],
+                'sks'         => (int) $row['sks'],
+                'nilai_huruf' => $nilaiHuruf,
+            ]);
+        } else {
+            $ml = MatkulLampau::create([
+                'rpl_mata_kuliah_id' => $rplMk->id,
                 'kode_mk'            => $row['kode_mk'],
                 'nama_mk'            => $row['nama_mk'],
                 'sks'                => (int) $row['sks'],
                 'nilai_huruf'        => $nilaiHuruf,
-            ]
-        );
+            ]);
+        }
 
         $this->matkulLampau[$rplMkId]['id'] = $ml->id;
         $this->dispatch('notify-saved');
@@ -431,7 +457,10 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                 @if ($rplMk->catatan_asesor)
                 <div class="mt-4 bg-[#F0F7FA] border border-[#C5DDE5] rounded-xl px-4 py-3">
                     <div class="text-[10px] font-semibold text-primary uppercase tracking-[0.7px] mb-1">Catatan Asesor — MK Tujuan</div>
-                    <div class="text-[12px] text-[#1a2a35] leading-[1.6] [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mb-0.5 [&_b]:font-bold [&_i]:italic [&_u]:underline">{!! $rplMk->catatan_asesor !!}</div>
+                    <x-safe-rich-text
+                        :html="$rplMk->catatan_asesor"
+                        class="text-[12px] text-[#1a2a35] leading-[1.6] [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mb-0.5 [&_b]:font-bold [&_i]:italic [&_u]:underline"
+                    />
                 </div>
                 @endif
 
@@ -439,7 +468,10 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                     @if ($ml->catatan_asesor)
                     <div class="mt-3 bg-[#FFF8E1] border border-[#FFE082] rounded-xl px-4 py-3">
                         <div class="text-[10px] font-semibold text-[#b45309] uppercase tracking-[0.7px] mb-1">Catatan Asesor — MK Lampau ({{ $ml->kode_mk }})</div>
-                        <div class="text-[12px] text-[#1a2a35] leading-[1.6] [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mb-0.5 [&_b]:font-bold [&_i]:italic [&_u]:underline">{!! $ml->catatan_asesor !!}</div>
+                        <x-safe-rich-text
+                            :html="$ml->catatan_asesor"
+                            class="text-[12px] text-[#1a2a35] leading-[1.6] [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mb-0.5 [&_b]:font-bold [&_i]:italic [&_u]:underline"
+                        />
                     </div>
                     @endif
                 @endforeach

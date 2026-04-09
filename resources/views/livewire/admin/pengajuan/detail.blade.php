@@ -111,7 +111,11 @@ new #[Layout('components.layouts.admin')] class extends Component {
     {
         $this->assertCanEditMk();
 
-        RplMataKuliah::findOrFail($rplMkId)->delete();
+        $rplMk = RplMataKuliah::query()
+            ->where('permohonan_rpl_id', $this->permohonan->id)
+            ->findOrFail($rplMkId);
+
+        $rplMk->delete();
         $this->reload();
     }
 

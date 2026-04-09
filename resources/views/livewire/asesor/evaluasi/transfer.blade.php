@@ -4,6 +4,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use Livewire\WithFileUploads;
 use App\Actions\Asesor\FinalisasiPermohonanAction;
+use App\Actions\Asesor\SanitizeCatatanAsesorAction;
 use App\Actions\Asesor\SelesaikanVerifikasiAction;
 use App\Enums\JenisRplEnum;
 use App\Enums\NilaiHurufEnum;
@@ -54,7 +55,11 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     public function setStatusMk(int $rplMkId, string $status): void
     {
         $statusEnum = StatusRplMataKuliahEnum::from($status);
-        $rplMk = RplMataKuliah::with('mataKuliah')->findOrFail($rplMkId);
+        $rplMk = RplMataKuliah::query()
+            ->with('mataKuliah')
+            ->where('permohonan_rpl_id', $this->permohonan->id)
+            ->findOrFail($rplMkId);
+
         $rplMk->update([
             'status'     => $statusEnum,
             'sks_diakui' => $statusEnum === StatusRplMataKuliahEnum::Diakui ? ($rplMk->mataKuliah->sks ?? 0) : 0,
@@ -63,7 +68,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         $this->dispatch('notify-saved');
     }
 
-    public function simpanNilai(int $rplMkId): void
+    public function simpanNilai(SanitizeCatatanAsesorAction $sanitizer, int $rplMkId): void
     {
         $nilai = $this->nilaiTransfer[$rplMkId] ?? '';
 
@@ -73,7 +78,11 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
         $nilaiEnum = NilaiHurufEnum::from($nilai);
 
-        $rplMk = RplMataKuliah::with(['mataKuliah', 'matkulLampau'])->findOrFail($rplMkId);
+        $rplMk = RplMataKuliah::query()
+            ->with(['mataKuliah', 'matkulLampau'])
+            ->where('permohonan_rpl_id', $this->permohonan->id)
+            ->findOrFail($rplMkId);
+
         $rplMk->update([
             'nilai_transfer'  => $nilaiEnum->value,
             'catatan_asesor'  => null,
@@ -86,7 +95,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         foreach ($rplMk->matkulLampau as $ml) {
             if (isset($this->catatanLampau[$ml->id])) {
                 $ml->update([
-                    'catatan_asesor' => $this->catatanLampau[$ml->id]
+                    'catatan_asesor' => $sanitizer->execute($this->catatanLampau[$ml->id]),
                 ]);
             }
         }

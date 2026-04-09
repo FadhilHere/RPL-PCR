@@ -8,15 +8,25 @@ use App\Models\RplMataKuliah;
 
 class SimpanStatusMkAction
 {
+    public function __construct(
+        private readonly SanitizeCatatanAsesorAction $sanitizer,
+    ) {}
+
     public function execute(
         PermohonanRpl $permohonan,
         int $rplMkId,
         StatusRplMataKuliahEnum $status,
         ?string $catatan,
     ): void {
-        RplMataKuliah::findOrFail($rplMkId)->update([
+        $rplMk = RplMataKuliah::query()
+            ->where('permohonan_rpl_id', $permohonan->id)
+            ->findOrFail($rplMkId);
+
+        $catatanAman = $this->sanitizer->execute($catatan);
+
+        $rplMk->update([
             'status'         => $status,
-            'catatan_asesor' => $catatan ?: null,
+            'catatan_asesor' => $catatanAman,
         ]);
     }
 }

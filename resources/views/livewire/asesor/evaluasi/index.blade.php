@@ -5,6 +5,7 @@ use Livewire\Volt\Component;
 use Livewire\WithFileUploads;
 use App\Actions\Asesor\FinalisasiPermohonanAction;
 use App\Actions\Asesor\HitungKeputusanMkAction;
+use App\Actions\Asesor\SanitizeCatatanAsesorAction;
 use App\Actions\Asesor\SelesaikanVerifikasiAction;
 use App\Actions\Asesor\SimpanStatusMkAction;
 use App\Enums\StatusPermohonanEnum;
@@ -89,16 +90,20 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         $this->dispatch('notify-saved');
     }
 
-    public function simpanCatatanLampau(int $matkulLampauId): void
+    public function simpanCatatanLampau(SanitizeCatatanAsesorAction $sanitizer, int $matkulLampauId): void
     {
-        $ml = \App\Models\MatkulLampau::findOrFail($matkulLampauId);
+        $ml = \App\Models\MatkulLampau::query()
+            ->whereKey($matkulLampauId)
+            ->whereIn('rpl_mata_kuliah_id', $this->permohonan->rplMataKuliah()->select('id'))
+            ->firstOrFail();
+
         $ml->update([
-            'catatan_asesor' => $this->catatanLampau[$matkulLampauId] ?? null,
+            'catatan_asesor' => $sanitizer->execute($this->catatanLampau[$matkulLampauId] ?? null),
         ]);
         $this->dispatch('notify-saved');
     }
 
-    public function simpanNilaiTransfer(int $rplMkId): void
+    public function simpanNilaiTransfer(SanitizeCatatanAsesorAction $sanitizer, int $rplMkId): void
     {
         $nilai = $this->nilaiTransfer[$rplMkId] ?? '';
 
@@ -107,7 +112,10 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         ], [], ["nilaiTransfer.{$rplMkId}" => 'grade huruf']);
 
         $nilaiEnum = \App\Enums\NilaiHurufEnum::from($nilai);
-        $rplMk = \App\Models\RplMataKuliah::with('mataKuliah')->findOrFail($rplMkId);
+        $rplMk = \App\Models\RplMataKuliah::query()
+            ->with(['mataKuliah', 'matkulLampau'])
+            ->where('permohonan_rpl_id', $this->permohonan->id)
+            ->findOrFail($rplMkId);
 
         $status = $nilaiEnum->diakui() ? StatusRplMataKuliahEnum::Diakui : StatusRplMataKuliahEnum::TidakDiakui;
 
@@ -119,7 +127,9 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
         foreach ($rplMk->matkulLampau as $ml) {
             if (isset($this->catatanLampau[$ml->id])) {
-                $ml->update(['catatan_asesor' => $this->catatanLampau[$ml->id]]);
+                $ml->update([
+                    'catatan_asesor' => $sanitizer->execute($this->catatanLampau[$ml->id]),
+                ]);
             }
         }
 
@@ -135,8 +145,13 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
         $asesor = auth()->user()->asesor;
 
+        $asm = \App\Models\AsesmenMandiri::query()
+            ->whereKey($asesmenMandiriId)
+            ->whereIn('rpl_mata_kuliah_id', $this->permohonan->rplMataKuliah()->select('id'))
+            ->firstOrFail();
+
         NilaiAsesor::updateOrCreate(
-            ['asesmen_mandiri_id' => $asesmenMandiriId],
+            ['asesmen_mandiri_id' => $asm->id],
             [
                 'asesor_id'    => $asesor?->id,
                 'nilai'        => $nilai,
@@ -144,13 +159,12 @@ new #[Layout('components.layouts.asesor')] class extends Component {
             ]
         );
 
-        $this->nilaiAsesor[$asesmenMandiriId] = $nilai;
+        $this->nilaiAsesor[$asm->id] = $nilai;
 
-        // Ambil data MK
-        $asm   = \App\Models\AsesmenMandiri::find($asesmenMandiriId);
-        $rplMk = $asm
-            ? \App\Models\RplMataKuliah::with('asesmenMandiri.nilaiAsesor')->find($asm->rpl_mata_kuliah_id)
-            : null;
+        $rplMk = \App\Models\RplMataKuliah::query()
+            ->with('asesmenMandiri.nilaiAsesor')
+            ->where('permohonan_rpl_id', $this->permohonan->id)
+            ->find($asm->rpl_mata_kuliah_id);
 
         if ($rplMk) {
             $hitungAction = app(HitungKeputusanMkAction::class);
@@ -179,8 +193,13 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     {
         $asesor = auth()->user()->asesor;
 
+        $asm = \App\Models\AsesmenMandiri::query()
+            ->whereKey($asesmenMandiriId)
+            ->whereIn('rpl_mata_kuliah_id', $this->permohonan->rplMataKuliah()->select('id'))
+            ->firstOrFail();
+
         EvaluasiVatm::updateOrCreate(
-            ['asesmen_mandiri_id' => $asesmenMandiriId],
+            ['asesmen_mandiri_id' => $asm->id],
             [
                 $field            => $value,
                 'asesor_id'       => $asesor?->id,
