@@ -6,6 +6,7 @@ use App\Enums\PosisiPenandatanganEnum;
 use App\Enums\RoleEnum;
 use App\Enums\StatusRplMataKuliahEnum;
 use App\Enums\StatusVerifikasiEnum;
+use App\Enums\JenisRplEnum;
 use App\Models\Asesor;
 use App\Models\BeritaAcara;
 use App\Models\DokumenBukti;
@@ -75,6 +76,11 @@ class BerkasController extends Controller
                     return null;
                 }
 
+                $jenisRpl = $permohonan->jenis_rpl;
+                if (!$jenisRpl instanceof JenisRplEnum) {
+                    $jenisRpl = is_string($jenisRpl) ? JenisRplEnum::tryFrom($jenisRpl) : null;
+                }
+
                 $statusVerifikasi = $verifikasi->status instanceof StatusVerifikasiEnum
                     ? $verifikasi->status
                     : StatusVerifikasiEnum::tryFrom((string) $verifikasi->status);
@@ -97,6 +103,7 @@ class BerkasController extends Controller
 
                 return [
                     'nama_peserta' => $permohonan->peserta?->user?->nama ?? '—',
+                    'jenis_rpl' => $jenisRpl?->label() ?? '-',
                     'total_sks_diperoleh' => $totalSks,
                     'tanggal_asesi' => Carbon::parse($verifikasi->jadwal),
                     'keterangan_hadir' => $keteranganHadir,
@@ -364,14 +371,15 @@ class BerkasController extends Controller
         $headerStyle = ['bold' => true, 'size' => 10];
         $table->addRow();
         $table->addCell(700)->addText('No', $headerStyle, $center);
-        $table->addCell(4300)->addText('Nama Peserta', $headerStyle, $center);
-        $table->addCell(1800)->addText('Total SKS Diperoleh', $headerStyle, $center);
-        $table->addCell(2200)->addText('Tanggal Asesi', $headerStyle, $center);
-        $table->addCell(2000)->addText('Keterangan Hadir', $headerStyle, $center);
+        $table->addCell(3200)->addText('Nama Peserta', $headerStyle, $center);
+        $table->addCell(1600)->addText('Jenis RPL', $headerStyle, $center);
+        $table->addCell(1600)->addText('Total SKS Diperoleh', $headerStyle, $center);
+        $table->addCell(2000)->addText('Tanggal Asesi', $headerStyle, $center);
+        $table->addCell(1900)->addText('Keterangan Hadir', $headerStyle, $center);
 
         if ($payload['rows']->isEmpty()) {
             $table->addRow();
-            $table->addCell(11000, ['gridSpan' => 5])->addText('Tidak ada data peserta untuk filter yang dipilih.', ['size' => 10], $center);
+            $table->addCell(11000, ['gridSpan' => 6])->addText('Tidak ada data peserta untuk filter yang dipilih.', ['size' => 10], $center);
         } else {
             foreach ($payload['rows'] as $idx => $row) {
                 $tanggalAsesi = $row['tanggal_asesi'] instanceof Carbon
@@ -380,10 +388,11 @@ class BerkasController extends Controller
 
                 $table->addRow();
                 $table->addCell(700)->addText((string) ($idx + 1), ['size' => 10], $center);
-                $table->addCell(4300)->addText($row['nama_peserta'], ['size' => 10]);
-                $table->addCell(1800)->addText((string) $row['total_sks_diperoleh'], ['size' => 10], $center);
-                $table->addCell(2200)->addText($tanggalAsesi, ['size' => 10], $center);
-                $table->addCell(2000)->addText($row['keterangan_hadir'], ['size' => 10], $center);
+                $table->addCell(3200)->addText($row['nama_peserta'], ['size' => 10]);
+                $table->addCell(1600)->addText($row['jenis_rpl'], ['size' => 10], $center);
+                $table->addCell(1600)->addText((string) $row['total_sks_diperoleh'], ['size' => 10], $center);
+                $table->addCell(2000)->addText($tanggalAsesi, ['size' => 10], $center);
+                $table->addCell(1900)->addText($row['keterangan_hadir'], ['size' => 10], $center);
             }
         }
 

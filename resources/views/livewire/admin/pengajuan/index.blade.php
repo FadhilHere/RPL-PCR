@@ -3,6 +3,7 @@
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
+use App\Enums\JenisRplEnum;
 use App\Models\PermohonanRpl;
 use App\Models\ProgramStudi;
 
@@ -12,10 +13,12 @@ new #[Layout('components.layouts.admin')] class extends Component {
     public string $search        = '';
     public string $filterStatus  = '';
     public string $filterProdi   = '';
+    public string $filterJenisRpl = '';
 
     public function updatedSearch(): void { $this->resetPage(); }
     public function updatedFilterStatus(): void { $this->resetPage(); }
     public function updatedFilterProdi(): void { $this->resetPage(); }
+    public function updatedFilterJenisRpl(): void { $this->resetPage(); }
 
     public function with(): array
     {
@@ -25,6 +28,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
                 $q->where('nama', 'like', "%{$this->search}%");
             }))
             ->when($this->filterStatus, fn($q) => $q->where('status', $this->filterStatus))
+            ->when($this->filterJenisRpl, fn($q) => $q->where('jenis_rpl', $this->filterJenisRpl))
             ->when($this->filterProdi,  fn($q) => $q->where('program_studi_id', $this->filterProdi))
             ->latest('tanggal_pengajuan');
 
@@ -33,9 +37,14 @@ new #[Layout('components.layouts.admin')] class extends Component {
             ->pluck('nama', 'id')
             ->toArray();
 
+        $jenisRplOptions = collect(JenisRplEnum::cases())
+            ->mapWithKeys(fn($e) => [$e->value => $e->label()])
+            ->toArray();
+
         return [
             'permohonanList' => $query->paginate(15),
             'prodiOptions'   => $prodiOptions,
+            'jenisRplOptions' => $jenisRplOptions,
         ];
     }
 }; ?>
@@ -46,7 +55,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
 <div>
 
     {{-- Toolbar --}}
-    <div class="flex items-center gap-3 mb-5">
+    <div class="flex flex-wrap items-center gap-3 mb-5">
         <div class="flex-1 relative">
             <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8a9ba8]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -57,6 +66,9 @@ new #[Layout('components.layouts.admin')] class extends Component {
         <x-form.select wire:model.live="filterStatus" placeholder="Semua Status"
             :options="collect(\App\Enums\StatusPermohonanEnum::cases())->mapWithKeys(fn($e) => [$e->value => $e->label()])->all()"
             class="w-[180px]" />
+        <x-form.select wire:model.live="filterJenisRpl" placeholder="Semua Jenis RPL"
+            :options="$jenisRplOptions"
+            class="w-[220px]" />
         <x-form.select wire:model.live="filterProdi" placeholder="Semua Prodi"
             :options="$prodiOptions"
             class="w-[200px]" />

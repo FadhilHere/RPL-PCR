@@ -178,10 +178,11 @@
         <thead>
             <tr>
                 <th style="width: 6%;">No</th>
-                <th>Nama Peserta</th>
-                <th style="width: 18%;">Total SKS Diperoleh</th>
-                <th style="width: 23%;">Tanggal Asesi</th>
-                <th style="width: 18%;">Keterangan Hadir</th>
+                <th style="width: 23%;">Nama Peserta</th>
+                <th style="width: 16%;">Jenis RPL</th>
+                <th style="width: 15%;">Total SKS Diperoleh</th>
+                <th style="width: 20%;">Tanggal Asesi</th>
+                <th style="width: 20%;">Keterangan Hadir</th>
             </tr>
         </thead>
         <tbody>
@@ -189,13 +190,14 @@
             <tr>
                 <td class="center">{{ $idx + 1 }}</td>
                 <td>{{ $row['nama_peserta'] }}</td>
+                <td class="center">{{ $row['jenis_rpl'] }}</td>
                 <td class="center">{{ $row['total_sks_diperoleh'] }}</td>
                 <td class="center">{{ $row['tanggal_asesi']->locale('id')->isoFormat('D MMMM YYYY') }}</td>
                 <td class="center">{{ $row['keterangan_hadir'] }}</td>
             </tr>
             @empty
             <tr>
-                <td colspan="5" class="center" style="color: #666;">Tidak ada data peserta untuk filter yang dipilih.</td>
+                <td colspan="6" class="center" style="color: #666;">Tidak ada data peserta untuk filter yang dipilih.</td>
             </tr>
             @endforelse
         </tbody>

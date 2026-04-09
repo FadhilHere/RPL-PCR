@@ -3,6 +3,7 @@
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use Illuminate\Support\Carbon;
+use App\Enums\JenisRplEnum;
 use App\Enums\StatusRplMataKuliahEnum;
 use App\Enums\StatusVerifikasiEnum;
 use App\Models\PermohonanRpl;
@@ -60,6 +61,11 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                     return null;
                 }
 
+                $jenisRpl = $permohonan->jenis_rpl;
+                if (! $jenisRpl instanceof JenisRplEnum) {
+                    $jenisRpl = is_string($jenisRpl) ? JenisRplEnum::tryFrom($jenisRpl) : null;
+                }
+
                 $statusVerifikasi = $verifikasi->status instanceof StatusVerifikasiEnum
                     ? $verifikasi->status
                     : StatusVerifikasiEnum::tryFrom((string) $verifikasi->status);
@@ -82,6 +88,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
                 return [
                     'nama_peserta'        => $permohonan->peserta?->user?->nama ?? '—',
+                    'jenis_rpl'           => $jenisRpl?->label() ?? '-',
                     'total_sks_diperoleh' => $totalSks,
                     'tanggal_asesi'       => Carbon::parse($verifikasi->jadwal),
                     'keterangan_hadir'    => $keteranganHadir,
@@ -193,6 +200,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                     <tr class="border-b border-[#F0F2F5]">
                         <th class="text-left px-5 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] w-[60px]">No</th>
                         <th class="text-left px-4 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Nama Peserta</th>
+                        <th class="text-left px-4 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] w-[200px]">Jenis RPL</th>
                         <th class="text-left px-4 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] w-[170px]">Total SKS</th>
                         <th class="text-left px-4 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] w-[200px]">Tanggal Asesi</th>
                         <th class="text-left px-4 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] w-[170px]">Keterangan Hadir</th>
@@ -203,6 +211,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                     <tr class="border-b border-[#F6F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors">
                         <td class="px-5 py-3.5 text-[12px] text-[#8a9ba8]">{{ $idx + 1 }}</td>
                         <td class="px-4 py-3.5 text-[13px] text-[#1a2a35] font-medium">{{ $row['nama_peserta'] }}</td>
+                        <td class="px-4 py-3.5 text-[13px] text-[#1a2a35]">{{ $row['jenis_rpl'] }}</td>
                         <td class="px-4 py-3.5 text-[13px] text-[#1a2a35]">{{ $row['total_sks_diperoleh'] }} SKS</td>
                         <td class="px-4 py-3.5 text-[13px] text-[#1a2a35]">{{ $row['tanggal_asesi']->locale('id')->isoFormat('D MMMM YYYY') }}</td>
                         <td class="px-4 py-3.5">
@@ -213,7 +222,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="5" class="px-5 py-10 text-center text-[13px] text-[#8a9ba8]">
+                        <td colspan="6" class="px-5 py-10 text-center text-[13px] text-[#8a9ba8]">
                             Tidak ada peserta pada filter yang dipilih.
                         </td>
                     </tr>
@@ -225,7 +234,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
     <div class="bg-white rounded-[10px] border border-[#E5E8EC] px-5 py-4 text-[12px] text-[#5a6a75] leading-[1.65]">
         <div class="font-semibold text-[#1a2a35] mb-1">Format BA yang diunduh</div>
-        <div>Tabel berisi: No, Nama Peserta, Total SKS Diperoleh, Tanggal Asesi, Keterangan Hadir.</div>
+        <div>Tabel berisi: No, Nama Peserta, Jenis RPL, Total SKS Diperoleh, Tanggal Asesi, Keterangan Hadir.</div>
         <div>Keterangan Hadir dipetakan otomatis: <span class="font-semibold">Selesai = Hadir</span>, <span class="font-semibold">Terjadwal = Belum Asesmen</span>.</div>
     </div>
 </div>

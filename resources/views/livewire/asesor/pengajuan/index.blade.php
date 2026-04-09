@@ -12,9 +12,11 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
     public string $search = '';
     public string $filterStatus = '';
+    public string $filterJenisRpl = '';
 
     public function updatedSearch(): void { $this->resetPage(); }
     public function updatedFilterStatus(): void { $this->resetPage(); }
+    public function updatedFilterJenisRpl(): void { $this->resetPage(); }
 
     public function with(): array
     {
@@ -29,11 +31,17 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                 $q->where('nama', 'like', "%{$this->search}%");
             }))
             ->when($this->filterStatus, fn($q) => $q->where('status', $this->filterStatus))
+            ->when($this->filterJenisRpl, fn($q) => $q->where('jenis_rpl', $this->filterJenisRpl))
             ->latest('tanggal_pengajuan');
+
+        $jenisRplOptions = collect(JenisRplEnum::cases())
+            ->mapWithKeys(fn($e) => [$e->value => $e->label()])
+            ->toArray();
 
         return [
             'permohonanList'     => $query->paginate(15),
             'tidakAdaAssignment' => ! $asesor,
+            'jenisRplOptions'    => $jenisRplOptions,
         ];
     }
 }; ?>
@@ -44,7 +52,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 <div>
 
     {{-- Toolbar --}}
-    <div class="flex items-center gap-3 mb-5">
+    <div class="flex flex-wrap items-center gap-3 mb-5">
         <div class="flex-1 relative">
             <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8a9ba8]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -55,6 +63,9 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         <x-form.select wire:model.live="filterStatus" placeholder="Semua Status"
             :options="collect([\App\Enums\StatusPermohonanEnum::Diproses, \App\Enums\StatusPermohonanEnum::Asesmen, \App\Enums\StatusPermohonanEnum::Verifikasi, \App\Enums\StatusPermohonanEnum::Disetujui, \App\Enums\StatusPermohonanEnum::Ditolak])->mapWithKeys(fn($e) => [$e->value => $e->label()])->all()"
             class="w-[180px]" />
+        <x-form.select wire:model.live="filterJenisRpl" placeholder="Semua Jenis RPL"
+            :options="$jenisRplOptions"
+            class="w-[220px]" />
     </div>
 
     {{-- Tabel --}}
