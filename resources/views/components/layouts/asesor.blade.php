@@ -12,14 +12,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="stylesheet" href="https://unpkg.com/nprogress@0.2.0/nprogress.css">
-    
+
     <!-- Quill Editor (Lebih clean dan modern dari Trix) -->
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
     <style>
         #nprogress .bar { background: #004B5F !important; height: 2.5px !important; }
         #nprogress .peg { box-shadow: 0 0 10px #004B5F, 0 0 5px #004B5F !important; }
-        
+
         /* Fix Tailwind CSS Reset untuk list di dalam Quill Editor */
         .ql-editor ul { list-style-type: disc !important; padding-left: 1.5rem !important; }
         .ql-editor ol { list-style-type: decimal !important; padding-left: 1.5rem !important; }

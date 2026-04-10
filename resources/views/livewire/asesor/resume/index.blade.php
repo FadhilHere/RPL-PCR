@@ -3,6 +3,7 @@
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
+use App\Enums\JenisRplEnum;
 use App\Enums\StatusPermohonanEnum;
 use App\Enums\StatusRplMataKuliahEnum;
 use App\Models\PermohonanRpl;
@@ -11,9 +12,11 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     use WithPagination;
 
     public string $search       = '';
+    public string $filterJenisRpl = '';
     public string $filterStatus = '';
 
     public function updatedSearch(): void       { $this->resetPage(); }
+    public function updatedFilterJenisRpl(): void { $this->resetPage(); }
     public function updatedFilterStatus(): void { $this->resetPage(); }
 
     public function with(): array
@@ -40,6 +43,9 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                     $q2->where('nama', 'like', "%{$this->search}%")
                 )
             )
+            ->when($this->filterJenisRpl, fn($q) =>
+                $q->where('jenis_rpl', $this->filterJenisRpl)
+            )
             ->when($this->filterStatus, fn($q) =>
                 $q->where('status', $this->filterStatus)
             )
@@ -54,7 +60,11 @@ new #[Layout('components.layouts.asesor')] class extends Component {
             StatusPermohonanEnum::Ditolak,
         ])->mapWithKeys(fn($e) => [$e->value => $e->label()])->toArray();
 
-        return compact('list', 'statusOptions');
+        $jenisRplOptions = collect(JenisRplEnum::cases())
+            ->mapWithKeys(fn($e) => [$e->value => $e->label()])
+            ->toArray();
+
+        return compact('list', 'statusOptions', 'jenisRplOptions');
     }
 }; ?>
 
@@ -78,15 +88,19 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                        placeholder="Semua Status"
                        :options="$statusOptions"
                        class="w-[160px]" />
+        <x-form.select wire:model.live="filterJenisRpl"
+                       placeholder="Semua Jenis RPL"
+                       :options="$jenisRplOptions"
+                       class="w-[220px]" />
         <div class="ml-auto flex items-center gap-2">
-            <a href="{{ route('export.resume.asesor.excel') }}"
+            <a href="{{ route('export.resume.asesor.excel', array_filter(['jenis_rpl' => $filterJenisRpl])) }}"
                class="flex items-center gap-1.5 h-[38px] px-3.5 text-[12px] font-semibold text-[#1e7e3e] border border-[#A8D5B5] rounded-lg hover:bg-[#E6F4EA] transition-colors no-underline">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
                 Excel
             </a>
-            <a href="{{ route('export.resume.asesor.pdf') }}"
+            <a href="{{ route('export.resume.asesor.pdf', array_filter(['jenis_rpl' => $filterJenisRpl])) }}"
                class="flex items-center gap-1.5 h-[38px] px-3.5 text-[12px] font-semibold text-[#c62828] border border-[#F5C6C6] rounded-lg hover:bg-[#FCE8E6] transition-colors no-underline">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -104,6 +118,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                     <th class="text-left px-5 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">No. Permohonan</th>
                     <th class="text-left px-4 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Peserta</th>
                     <th class="text-left px-4 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Program Studi</th>
+                    <th class="text-center px-4 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Jenis RPL</th>
                     <th class="text-left px-4 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Tahun Ajaran</th>
                     <th class="text-center px-4 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Status</th>
                     <th class="text-center px-4 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">MK Diakui</th>
@@ -118,6 +133,11 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                     $totalSks  = $p->rplMataKuliah->sum(fn($m) => $m->mataKuliah->sks ?? 0);
                     $mkDiakui  = $p->rplMataKuliah->where('status', \App\Enums\StatusRplMataKuliahEnum::Diakui)->count();
                     $sksDiakui = $p->rplMataKuliah->where('status', \App\Enums\StatusRplMataKuliahEnum::Diakui)->sum(fn($m) => $m->mataKuliah->sks ?? 0);
+                    $jenisRplBadgeClass = match ($p->jenis_rpl) {
+                        JenisRplEnum::RplI => 'text-[#1e7e3e] bg-[#E6F4EA] border border-[#B7DFC4]',
+                        JenisRplEnum::RplII => 'text-[#0f5c8b] bg-[#E7F3FB] border border-[#BBDCF0]',
+                        default => 'text-[#5a6a75] bg-[#F3F5F7] border border-[#E0E5EA]',
+                    };
                 @endphp
                 <tr class="border-b border-[#F6F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors" wire:key="p-{{ $p->id }}">
                     <td class="px-5 py-3.5">
@@ -128,6 +148,11 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                         <div class="text-[12px] font-medium text-[#1a2a35]">{{ $p->peserta?->user?->nama ?? '—' }}</div>
                     </td>
                     <td class="px-4 py-3.5 text-[12px] text-[#5a6a75]">{{ $p->programStudi?->nama ?? '—' }}</td>
+                    <td class="px-4 py-3.5 text-center">
+                        <span class="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $jenisRplBadgeClass }}">
+                            {{ $p->jenis_rpl?->label() ?? '—' }}
+                        </span>
+                    </td>
                     <td class="px-4 py-3.5 text-[12px] text-[#5a6a75]">
                         {{ $p->tahunAjaran?->nama ?? '—' }}
                         @if ($p->semester)
@@ -168,7 +193,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="8" class="px-5 py-10 text-center text-[13px] text-[#8a9ba8]">Belum ada data permohonan di prodi Anda.</td>
+                    <td colspan="9" class="px-5 py-10 text-center text-[13px] text-[#8a9ba8]">Belum ada data permohonan di prodi Anda.</td>
                 </tr>
                 @endforelse
             </tbody>
