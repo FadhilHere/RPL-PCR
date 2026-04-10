@@ -120,6 +120,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
         modal: false,
         confirm: { open: false, id: null, nama: '' },
         confirmTtd: { open: false, id: null, nama: '' },
+        ttdPreview: { open: false, src: '', name: '' },
         editId: null,
         editProdiId: null,
         errors: {},
@@ -163,10 +164,16 @@ new #[Layout('components.layouts.admin')] class extends Component {
         askDeleteTtd(id, nama) {
             this.confirmTtd = { open: true, id, nama };
         },
+        openTtd(src, name) {
+            this.ttdPreview = { open: true, src, name };
+        },
+        closeTtd() {
+            this.ttdPreview.open = false;
+        },
     }"
-    @prodi-saved.window="modal = false; confirm.open = false; confirmTtd.open = false;"
+    @prodi-saved.window="modal = false; confirm.open = false; confirmTtd.open = false; ttdPreview.open = false;"
     @prodi-validation-errors.window="errors = $event.detail.errors"
-    @keydown.escape.window="modal = false; confirm.open = false; confirmTtd.open = false; jenjangOpen = false"
+    @keydown.escape.window="modal = false; confirm.open = false; confirmTtd.open = false; ttdPreview.open = false; jenjangOpen = false"
 >
 
     {{-- ===== TOOLBAR ===== --}}
@@ -197,7 +204,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
                     <th class="text-left px-5 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] w-[80px]">Jenjang</th>
                     <th class="text-left px-5 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] w-[90px]">Total SKS</th>
                     <th class="text-left px-5 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] w-[80px]">MK</th>
-                    <th class="text-left px-5 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] w-[130px]">TTD Ketua</th>
+                    <th class="text-left px-5 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] w-[130px]">TTD Kaprodi</th>
                     <th class="text-left px-5 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] w-[80px]">Status</th>
                     <th class="px-5 py-3 w-[100px]"></th>
                 </tr>
@@ -225,11 +232,13 @@ new #[Layout('components.layouts.admin')] class extends Component {
                     </td>
                     <td class="px-5 py-3.5">
                         @if ($prodi->ketua_tanda_tangan)
-                        <a href="{{ route('berkas.ttd.program-studi', $prodi) }}" target="_blank" rel="noopener"
+                        <button type="button"
+                           @click="openTtd(@js(route('berkas.ttd.program-studi', $prodi)), @js('TTD Ketua ' . $prodi->nama))"
+                           title="Lihat TTD ketua"
                            class="inline-flex items-center gap-2 rounded-lg border border-[#E5E8EC] bg-[#F8FBFC] px-2 py-1 hover:border-primary/30 hover:bg-[#F1F8FA] transition-colors">
                             <img src="{{ route('berkas.ttd.program-studi', $prodi) }}" alt="TTD Ketua {{ $prodi->nama }}"
                                  class="h-8 w-auto max-w-[84px] object-contain" loading="lazy">
-                        </a>
+                        </button>
                         @else
                         <span class="inline-flex items-center rounded-full bg-[#F1F3F4] text-[#7d8891] text-[10px] font-semibold px-2.5 py-1">
                             Belum ada
@@ -287,6 +296,33 @@ new #[Layout('components.layouts.admin')] class extends Component {
             {{ $prodis->links() }}
         </div>
         @endif
+    </div>
+
+    {{-- ===== MODAL PREVIEW TTD KETUA ===== --}}
+    <div x-show="ttdPreview.open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+         x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+        <div @click.outside="closeTtd()" @keydown.escape.window="closeTtd()"
+             class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-5"
+             x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <div class="text-[14px] font-semibold text-[#1a2a35]" x-text="ttdPreview.name"></div>
+                    <div class="text-[11px] text-[#8a9ba8]">Preview tanda tangan ketua program studi</div>
+                </div>
+                <button type="button" @click="closeTtd()"
+                        class="w-8 h-8 rounded-md border border-[#D0D5DD] text-[#5a6a75] hover:border-primary hover:text-primary hover:bg-[#E8F4F8] transition-colors flex items-center justify-center"
+                        aria-label="Tutup preview">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="border border-[#E5E8EC] rounded-xl bg-[#FAFBFC] p-4 min-h-[180px] flex items-center justify-center">
+                <img :src="ttdPreview.src" alt="Preview TTD Ketua Program Studi" class="max-h-[320px] w-auto object-contain" />
+            </div>
+        </div>
     </div>
 
     {{-- ===== MODAL TAMBAH / EDIT ===== --}}

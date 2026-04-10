@@ -223,8 +223,11 @@ new #[Layout('components.layouts.admin')] class extends Component {
 
 <div x-data="{
     confirm: { open: false, userId: null, userName: '' },
+    ttdPreview: { open: false, src: '', name: '' },
     openConfirm(id, name) { this.confirm = { open: true, userId: id, userName: name }; },
     doDelete() { $wire.deleteUser(this.confirm.userId); this.confirm.open = false; },
+    openTtd(src, name) { this.ttdPreview = { open: true, src, name }; },
+    closeTtd() { this.ttdPreview.open = false; },
 }">
 
     {{-- Toolbar --}}
@@ -255,7 +258,8 @@ new #[Layout('components.layouts.admin')] class extends Component {
 
     {{-- Tabel --}}
     <div class="bg-white rounded-[10px] border border-[#E5E8EC] overflow-hidden">
-        <table class="w-full">
+        <div class="overflow-x-auto">
+        <table class="w-full min-w-[960px]">
             <thead>
                 <tr class="border-b border-[#F0F2F5]">
                     <th class="text-left px-5 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Nama</th>
@@ -302,6 +306,27 @@ new #[Layout('components.layouts.admin')] class extends Component {
                         @if ($prodiList !== null)
                             <div class="text-[11px] text-[#5a6a75] mt-0.5 truncate">
                                 {{ $prodiList ?: 'Belum ada prodi' }}
+                            </div>
+                        @endif
+                        @if ($user->role === RoleEnum::Asesor)
+                            @php
+                                $hasTtdAsesor = $user->asesor?->tanda_tangan
+                                    && \Illuminate\Support\Facades\Storage::disk('local')->exists($user->asesor->tanda_tangan);
+                            @endphp
+                            <div class="mt-1.5 flex items-center gap-2">
+                                <span class="text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.4px]">TTD</span>
+                                @if ($hasTtdAsesor)
+                                    <button type="button"
+                                       @click="openTtd(@js(route('berkas.ttd.asesor', $user->asesor)), @js('TTD ' . $user->nama))"
+                                       title="Lihat TTD asesor"
+                                       class="inline-flex items-center border border-[#E5E8EC] rounded-md bg-[#FAFBFC] px-1.5 py-0.5 hover:border-primary transition-colors">
+                                        <img src="{{ route('berkas.ttd.asesor', $user->asesor) }}"
+                                             alt="TTD {{ $user->nama }}"
+                                             class="h-5 w-auto max-w-[72px] object-contain" />
+                                    </button>
+                                @else
+                                    <span class="text-[10px] text-[#b0bec5]">Belum upload</span>
+                                @endif
                             </div>
                         @endif
                     </td>
@@ -386,6 +411,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     {{-- Pagination --}}
@@ -394,6 +420,32 @@ new #[Layout('components.layouts.admin')] class extends Component {
         {{ $users->links() }}
     </div>
     @endif
+
+    <div x-show="ttdPreview.open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+         x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+        <div @click.outside="closeTtd()" @keydown.escape.window="closeTtd()"
+             class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-5"
+             x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <div class="text-[14px] font-semibold text-[#1a2a35]" x-text="ttdPreview.name"></div>
+                    <div class="text-[11px] text-[#8a9ba8]">Preview tanda tangan asesor</div>
+                </div>
+                <button type="button" @click="closeTtd()"
+                        class="w-8 h-8 rounded-md border border-[#D0D5DD] text-[#5a6a75] hover:border-primary hover:text-primary hover:bg-[#E8F4F8] transition-colors flex items-center justify-center"
+                        aria-label="Tutup preview">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="border border-[#E5E8EC] rounded-xl bg-[#FAFBFC] p-4 min-h-[180px] flex items-center justify-center">
+                <img :src="ttdPreview.src" alt="Preview TTD Asesor" class="max-h-[320px] w-auto object-contain" />
+            </div>
+        </div>
+    </div>
 
     @include('livewire.admin.akun.partials.modal-tambah-akun')
     @include('livewire.admin.akun.partials.modal-edit-akun', compact('editUser', 'prodiOptions'))
