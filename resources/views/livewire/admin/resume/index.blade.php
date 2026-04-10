@@ -4,6 +4,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
 use App\Enums\JenisRplEnum;
+use App\Enums\SemesterEnum;
 use App\Enums\StatusPermohonanEnum;
 use App\Enums\StatusRplMataKuliahEnum;
 use App\Models\PermohonanRpl;
@@ -15,12 +16,25 @@ new #[Layout('components.layouts.admin')] class extends Component {
     public string $search       = '';
     public string $filterProdi  = '';
     public string $filterJenisRpl = '';
+    public string $filterSemester = '';
     public string $filterStatus = '';
+    public string $filterTanggalDari = '';
+    public string $filterTanggalSampai = '';
 
     public function updatedSearch(): void       { $this->resetPage(); }
     public function updatedFilterProdi(): void  { $this->resetPage(); }
     public function updatedFilterJenisRpl(): void { $this->resetPage(); }
+    public function updatedFilterSemester(): void { $this->resetPage(); }
     public function updatedFilterStatus(): void { $this->resetPage(); }
+    public function updatedFilterTanggalDari(): void { $this->resetPage(); }
+    public function updatedFilterTanggalSampai(): void { $this->resetPage(); }
+
+    public function clearDateFilter(): void
+    {
+        $this->filterTanggalDari = '';
+        $this->filterTanggalSampai = '';
+        $this->resetPage();
+    }
 
     public function with(): array
     {
@@ -42,8 +56,17 @@ new #[Layout('components.layouts.admin')] class extends Component {
             ->when($this->filterJenisRpl, fn($q) =>
                 $q->where('jenis_rpl', $this->filterJenisRpl)
             )
+            ->when($this->filterSemester, fn($q) =>
+                $q->where('semester', $this->filterSemester)
+            )
             ->when($this->filterStatus, fn($q) =>
                 $q->where('status', $this->filterStatus)
+            )
+            ->when($this->filterTanggalDari, fn($q) =>
+                $q->whereDate('tanggal_pengajuan', '>=', $this->filterTanggalDari)
+            )
+            ->when($this->filterTanggalSampai, fn($q) =>
+                $q->whereDate('tanggal_pengajuan', '<=', $this->filterTanggalSampai)
             )
             ->latest('tanggal_pengajuan')
             ->paginate(20);
@@ -63,7 +86,9 @@ new #[Layout('components.layouts.admin')] class extends Component {
             ->mapWithKeys(fn($e) => [$e->value => $e->label()])
             ->toArray();
 
-        return compact('list', 'prodiOptions', 'statusOptions', 'jenisRplOptions');
+        $semesterOptions = SemesterEnum::options();
+
+        return compact('list', 'prodiOptions', 'statusOptions', 'jenisRplOptions', 'semesterOptions');
     }
 }; ?>
 
@@ -91,19 +116,41 @@ new #[Layout('components.layouts.admin')] class extends Component {
                        placeholder="Semua Jenis RPL"
                        :options="$jenisRplOptions"
                        class="w-[220px]" />
+        <x-form.select wire:model.live="filterSemester"
+                       placeholder="Semua Semester"
+                       :options="$semesterOptions"
+                       class="w-[170px]" />
         <x-form.select wire:model.live="filterStatus"
                        placeholder="Semua Status"
                        :options="$statusOptions"
                        class="w-[160px]" />
+        <div class="flex items-center gap-2">
+            <x-form.date-picker wire:model.live="filterTanggalDari"
+                                placeholder="Dari tanggal..."
+                                :enable-time="false"
+                                class="w-[175px]" />
+            <span class="text-[12px] text-[#8a9ba8]">—</span>
+            <x-form.date-picker wire:model.live="filterTanggalSampai"
+                                placeholder="Sampai tanggal..."
+                                :enable-time="false"
+                                class="w-[175px]" />
+            @if ($filterTanggalDari || $filterTanggalSampai)
+            <button wire:click="clearDateFilter"
+                    title="Reset filter tanggal"
+                    class="w-[38px] h-[38px] flex items-center justify-center rounded-lg border border-[#D0D5DD] text-[#8a9ba8] hover:border-[#c62828] hover:text-[#c62828] hover:bg-[#FCE8E6] transition-colors">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            @endif
+        </div>
         <div class="ml-auto flex items-center gap-2">
-            <a href="{{ route('export.resume.excel', array_filter(['prodi_id' => $filterProdi, 'jenis_rpl' => $filterJenisRpl])) }}"
+            <a href="{{ route('export.resume.excel', array_filter(['prodi_id' => $filterProdi, 'jenis_rpl' => $filterJenisRpl, 'semester' => $filterSemester, 'tanggal_dari' => $filterTanggalDari, 'tanggal_sampai' => $filterTanggalSampai])) }}"
                class="flex items-center gap-1.5 h-[38px] px-3.5 text-[12px] font-semibold text-[#1e7e3e] border border-[#A8D5B5] rounded-lg hover:bg-[#E6F4EA] transition-colors no-underline">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
                 Excel
             </a>
-            <a href="{{ route('export.resume.pdf', array_filter(['prodi_id' => $filterProdi, 'jenis_rpl' => $filterJenisRpl])) }}"
+                <a href="{{ route('export.resume.pdf', array_filter(['prodi_id' => $filterProdi, 'jenis_rpl' => $filterJenisRpl, 'semester' => $filterSemester, 'tanggal_dari' => $filterTanggalDari, 'tanggal_sampai' => $filterTanggalSampai])) }}"
                class="flex items-center gap-1.5 h-[38px] px-3.5 text-[12px] font-semibold text-[#c62828] border border-[#F5C6C6] rounded-lg hover:bg-[#FCE8E6] transition-colors no-underline">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -136,10 +183,10 @@ new #[Layout('components.layouts.admin')] class extends Component {
                     $totalSks  = $p->rplMataKuliah->sum(fn($m) => $m->mataKuliah->sks ?? 0);
                     $mkDiakui  = $p->rplMataKuliah->where('status', \App\Enums\StatusRplMataKuliahEnum::Diakui)->count();
                     $sksDiakui = $p->rplMataKuliah->where('status', \App\Enums\StatusRplMataKuliahEnum::Diakui)->sum(fn($m) => $m->mataKuliah->sks ?? 0);
-                    $jenisRplBadgeClass = match ($p->jenis_rpl) {
-                        JenisRplEnum::RplI => 'text-[#1e7e3e] bg-[#E6F4EA] border border-[#B7DFC4]',
-                        JenisRplEnum::RplII => 'text-[#0f5c8b] bg-[#E7F3FB] border border-[#BBDCF0]',
-                        default => 'text-[#5a6a75] bg-[#F3F5F7] border border-[#E0E5EA]',
+                    $jenisRplTextClass = match ($p->jenis_rpl) {
+                        JenisRplEnum::RplI => 'text-[#0f5c8b]',
+                        JenisRplEnum::RplII => 'text-[#8b5e00]',
+                        default => 'text-[#5a6a75]',
                     };
                 @endphp
                 <tr class="border-b border-[#F6F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors" wire:key="p-{{ $p->id }}">
@@ -152,7 +199,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
                     </td>
                     <td class="px-4 py-3.5 text-[12px] text-[#5a6a75]">{{ $p->programStudi?->nama ?? '—' }}</td>
                     <td class="px-4 py-3.5 text-center">
-                        <span class="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full {{ $jenisRplBadgeClass }}">
+                        <span class="text-[11px] font-semibold {{ $jenisRplTextClass }}">
                             {{ $p->jenis_rpl?->label() ?? '—' }}
                         </span>
                     </td>

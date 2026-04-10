@@ -17,6 +17,10 @@ class ResumeAsesmenExport implements FromCollection, WithHeadings, WithTitle, Wi
     public function __construct(
         private readonly ?int $prodiId = null,
         private readonly ?int $asesorId = null,
+        private readonly ?string $jenisRpl = null,
+        private readonly ?string $semester = null,
+        private readonly ?string $tanggalDari = null,
+        private readonly ?string $tanggalSampai = null,
     ) {
     }
 
@@ -36,6 +40,22 @@ class ResumeAsesmenExport implements FromCollection, WithHeadings, WithTitle, Wi
 
         if ($this->asesorId) {
             $query->whereHas('asesor', fn($q) => $q->where('asesor_id', $this->asesorId));
+        }
+
+        if ($this->jenisRpl) {
+            $query->where('jenis_rpl', $this->jenisRpl);
+        }
+
+        if ($this->semester) {
+            $query->where('semester', $this->semester);
+        }
+
+        if ($this->tanggalDari) {
+            $query->whereDate('tanggal_pengajuan', '>=', $this->tanggalDari);
+        }
+
+        if ($this->tanggalSampai) {
+            $query->whereDate('tanggal_pengajuan', '<=', $this->tanggalSampai);
         }
 
         $rows = collect();

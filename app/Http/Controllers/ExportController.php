@@ -29,9 +29,19 @@ class ExportController extends Controller
         );
 
         $prodiId = request('prodi_id');
+        $jenisRpl = request('jenis_rpl') ?: null;
+        $semester = request('semester') ?: null;
+        $tanggalDari = request('tanggal_dari') ?: null;
+        $tanggalSampai = request('tanggal_sampai') ?: null;
         $filename = 'Resume_Asesmen' . ($prodiId ? '_' . ProgramStudi::find($prodiId)?->kode : '') . '_' . now()->format('Ymd') . '.xlsx';
 
-        return Excel::download(new ResumeAsesmenExport(prodiId: $prodiId), $filename);
+        return Excel::download(new ResumeAsesmenExport(
+            prodiId: $prodiId,
+            jenisRpl: $jenisRpl,
+            semester: $semester,
+            tanggalDari: $tanggalDari,
+            tanggalSampai: $tanggalSampai,
+        ), $filename);
     }
 
     public function resumePdf()
@@ -43,6 +53,10 @@ class ExportController extends Controller
         );
 
         $prodiId = request('prodi_id');
+        $jenisRpl = request('jenis_rpl') ?: null;
+        $semester = request('semester') ?: null;
+        $tanggalDari = request('tanggal_dari') ?: null;
+        $tanggalSampai = request('tanggal_sampai') ?: null;
         $prodi = $prodiId ? ProgramStudi::find($prodiId) : null;
 
         $list = PermohonanRpl::with([
@@ -53,6 +67,10 @@ class ExportController extends Controller
             'rplMataKuliah.mataKuliah',
         ])->whereNotIn('status', ['draf', 'diajukan'])
             ->when($prodiId, fn($q) => $q->where('program_studi_id', $prodiId))
+            ->when($jenisRpl, fn($q) => $q->where('jenis_rpl', $jenisRpl))
+            ->when($semester, fn($q) => $q->where('semester', $semester))
+            ->when($tanggalDari, fn($q) => $q->whereDate('tanggal_pengajuan', '>=', $tanggalDari))
+            ->when($tanggalSampai, fn($q) => $q->whereDate('tanggal_pengajuan', '<=', $tanggalSampai))
             ->latest('tanggal_pengajuan')
             ->get();
 
@@ -89,9 +107,19 @@ class ExportController extends Controller
         $asesor = $user->asesor;
         abort_if(!$asesor, 403);
 
+        $jenisRpl = request('jenis_rpl') ?: null;
+        $semester = request('semester') ?: null;
+        $tanggalDari = request('tanggal_dari') ?: null;
+        $tanggalSampai = request('tanggal_sampai') ?: null;
         $filename = 'Resume_Asesmen_' . now()->format('Ymd') . '.xlsx';
 
-        return Excel::download(new ResumeAsesmenExport(asesorId: $asesor->id), $filename);
+        return Excel::download(new ResumeAsesmenExport(
+            asesorId: $asesor->id,
+            jenisRpl: $jenisRpl,
+            semester: $semester,
+            tanggalDari: $tanggalDari,
+            tanggalSampai: $tanggalSampai,
+        ), $filename);
     }
 
     public function resumeAsesorPdf()
@@ -99,6 +127,11 @@ class ExportController extends Controller
         $user = auth()->user();
         $asesor = $user->asesor;
         abort_if(!$asesor, 403);
+
+        $jenisRpl = request('jenis_rpl') ?: null;
+        $semester = request('semester') ?: null;
+        $tanggalDari = request('tanggal_dari') ?: null;
+        $tanggalSampai = request('tanggal_sampai') ?: null;
 
         $list = PermohonanRpl::with([
             'peserta.user',
@@ -108,6 +141,10 @@ class ExportController extends Controller
             'rplMataKuliah.mataKuliah',
         ])->whereNotIn('status', ['draf', 'diajukan'])
             ->whereHas('asesor', fn($q) => $q->where('asesor_id', $asesor->id))
+            ->when($jenisRpl, fn($q) => $q->where('jenis_rpl', $jenisRpl))
+            ->when($semester, fn($q) => $q->where('semester', $semester))
+            ->when($tanggalDari, fn($q) => $q->whereDate('tanggal_pengajuan', '>=', $tanggalDari))
+            ->when($tanggalSampai, fn($q) => $q->whereDate('tanggal_pengajuan', '<=', $tanggalSampai))
             ->latest('tanggal_pengajuan')
             ->get();
 
