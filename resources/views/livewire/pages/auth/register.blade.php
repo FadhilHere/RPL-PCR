@@ -59,6 +59,9 @@ new #[Layout('layouts.guest')] class extends Component {
             provinsi: $this->form->provinsi,
             kodePos: $this->form->kodePos,
             telepon: $this->form->telepon,
+            institusiAsal: $this->form->institusiAsal,
+            programStudiAsal: $this->form->programStudiAsal,
+            peringkatAkreditasiAsal: $this->form->peringkatAkreditasiAsal,
             foto: $fotoPath,
             isDoPcr: $isDoPcr,
             semester: $this->form->semester,
@@ -271,6 +274,27 @@ new #[Layout('layouts.guest')] class extends Component {
                             <input wire:model="form.telepon" type="text" placeholder="08xxxxxxxxxx" maxlength="20" required
                                 class="w-full h-[40px] px-3.5 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/10 placeholder:text-[#b0bec5]" />
                             @error('form.telepon') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.8px] mb-1">Perguruan Tinggi Asal</label>
+                            <input wire:model="form.institusiAsal" type="text" placeholder="Nama perguruan tinggi asal"
+                                class="w-full h-[40px] px-3.5 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/10 placeholder:text-[#b0bec5]" />
+                            @error('form.institusiAsal') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.8px] mb-1">Program Studi Asal</label>
+                            <input wire:model="form.programStudiAsal" type="text" placeholder="Nama program studi asal"
+                                class="w-full h-[40px] px-3.5 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/10 placeholder:text-[#b0bec5]" />
+                            @error('form.programStudiAsal') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.8px] mb-1">Peringkat Akreditasi Asal</label>
+                            <input wire:model="form.peringkatAkreditasiAsal" type="text" placeholder="Contoh: Unggul / Baik Sekali / B"
+                                class="w-full h-[40px] px-3.5 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/10 placeholder:text-[#b0bec5]" />
+                            @error('form.peringkatAkreditasiAsal') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
                         </div>
 
                         {{-- Alamat --}}

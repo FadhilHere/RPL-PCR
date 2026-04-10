@@ -168,7 +168,7 @@ class BerkasController extends Controller
         $user = auth()->user();
         $peserta = $user->peserta;
 
-        $canAccess = in_array($user->role, [RoleEnum::Admin, RoleEnum::Asesor])
+        $canAccess = in_array($user->role, [RoleEnum::Admin, RoleEnum::AdminBaak, RoleEnum::AdminPmb, RoleEnum::Asesor])
             || ($peserta && $dokumen->peserta_id === $peserta->id);
 
         abort_if(!$canAccess, 403);
@@ -209,7 +209,7 @@ class BerkasController extends Controller
     {
         $user = auth()->user();
 
-        $canAccess = in_array($user->role, [RoleEnum::Admin, RoleEnum::Asesor])
+        $canAccess = in_array($user->role, [RoleEnum::Admin, RoleEnum::AdminBaak, RoleEnum::AdminPmb, RoleEnum::Asesor])
             || ($user->peserta && $vb->permohonan_rpl_id === $user->peserta->permohonanRpl?->id);
 
         abort_if(!$canAccess, 403);
@@ -457,7 +457,7 @@ class BerkasController extends Controller
     {
         $user = auth()->user();
         abort_if(
-            !in_array($user->role, [RoleEnum::Admin, RoleEnum::Asesor])
+            !in_array($user->role, [RoleEnum::Admin, RoleEnum::AdminBaak, RoleEnum::AdminPmb, RoleEnum::Asesor])
             && $user->peserta?->id !== $peserta->id,
             403
         );

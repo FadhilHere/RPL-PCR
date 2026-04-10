@@ -41,7 +41,10 @@ class SimpanBiodataPesertaAction
             'golongan_pangkat' => $biodata['golongan_pangkat'] ?? null,
             'instansi' => $biodata['instansi'] ?? null,
             'pekerjaan' => $biodata['pekerjaan'] ?? null,
-        ], static fn ($value) => $value !== null);
+            'institusi_asal' => $biodata['institusi_asal'] ?? null,
+            'program_studi_asal' => $biodata['program_studi_asal'] ?? null,
+            'peringkat_akreditasi_asal' => $biodata['peringkat_akreditasi_asal'] ?? null,
+        ], static fn($value) => $value !== null);
 
         if ($fotoPath) {
             $payload['foto'] = $fotoPath;

@@ -22,6 +22,9 @@ trait HasProfilBiodataForm
     public string $golonganPangkat = '';
     public string $instansi = '';
     public string $pekerjaan = '';
+    public string $institusiAsal = '';
+    public string $programStudiAsal = '';
+    public string $peringkatAkreditasiAsal = '';
     public $foto = null;
 
     protected function fillBiodataForm(Peserta $peserta): void
@@ -51,6 +54,9 @@ trait HasProfilBiodataForm
         $this->golonganPangkat = $peserta->golongan_pangkat ?? '';
         $this->instansi = $peserta->instansi ?? '';
         $this->pekerjaan = $peserta->pekerjaan ?? '';
+        $this->institusiAsal = $peserta->institusi_asal ?? '';
+        $this->programStudiAsal = $peserta->program_studi_asal ?? '';
+        $this->peringkatAkreditasiAsal = $peserta->peringkat_akreditasi_asal ?? '';
     }
 
     /**
@@ -75,6 +81,9 @@ trait HasProfilBiodataForm
             'golonganPangkat' => 'nullable|string|max:50',
             'instansi' => 'nullable|string|max:255',
             'pekerjaan' => 'nullable|string|max:255',
+            'institusiAsal' => 'nullable|string|max:255',
+            'programStudiAsal' => 'nullable|string|max:255',
+            'peringkatAkreditasiAsal' => 'nullable|string|max:100',
             'foto' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ];
     }
@@ -99,6 +108,9 @@ trait HasProfilBiodataForm
             'golongan_pangkat' => $this->toNull($this->golonganPangkat),
             'instansi' => $this->toNull($this->instansi),
             'pekerjaan' => $this->toNull($this->pekerjaan),
+            'institusi_asal' => $this->toNull($this->institusiAsal),
+            'program_studi_asal' => $this->toNull($this->programStudiAsal),
+            'peringkat_akreditasi_asal' => $this->toNull($this->peringkatAkreditasiAsal),
         ];
     }
 

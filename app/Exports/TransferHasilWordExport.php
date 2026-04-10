@@ -18,8 +18,9 @@ class TransferHasilWordExport
     public function __construct(
         private readonly NilaiKonversiService $nilaiKonversi,
         private readonly ?Penandatangan $penandatanganWadir = null,
-        private readonly ?ProgramStudi $programStudiKetua   = null,
-    ) {}
+        private readonly ?ProgramStudi $programStudiKetua = null,
+    ) {
+    }
 
     public function generate(PermohonanRpl $permohonan): PhpWord
     {
@@ -39,10 +40,10 @@ class TransferHasilWordExport
         $phpWord->setDefaultFontSize(11);
 
         $section = $phpWord->addSection([
-            'marginTop'    => 1000,
+            'marginTop' => 1000,
             'marginBottom' => 1000,
-            'marginLeft'   => 1200,
-            'marginRight'  => 1200,
+            'marginLeft' => 1200,
+            'marginRight' => 1200,
         ]);
 
         $this->addHeader($section, $permohonan);
@@ -75,7 +76,7 @@ class TransferHasilWordExport
     private function addInfoSection(Section $section, PermohonanRpl $permohonan): void
     {
         $peserta = $permohonan->peserta;
-        $user    = $peserta?->user;
+        $user = $peserta?->user;
 
         $section->addText('Data Konversi Nilai Hasil Studi', ['bold' => true, 'size' => 11]);
         $section->addTextBreak(1);
@@ -85,20 +86,20 @@ class TransferHasilWordExport
 
         $rows = [
             // Blok PT Asal
-            ['Perguruan Tinggi Asal',   $peserta?->institusi_asal ?? ''],
-            ['Program Studi',           ''],
-            ['Peringkat Akreditasi',    ''],
+            ['Perguruan Tinggi Asal', $peserta?->institusi_asal ?? '—'],
+            ['Program Studi', $peserta?->program_studi_asal ?? '—'],
+            ['Peringkat Akreditasi', $peserta?->peringkat_akreditasi_asal ?? '—'],
             // Spacer
             ['', ''],
             // Blok PT Tujuan
             ['Perguruan Tinggi Tujuan', 'Politeknik Caltex Riau'],
-            ['Program Studi',           $permohonan->programStudi?->nama ?? ''],
-            ['Peringkat Akreditasi',    ''],
+            ['Program Studi', $permohonan->programStudi?->nama ?? ''],
+            ['Peringkat Akreditasi', ''],
             // Spacer
             ['', ''],
             // Info mahasiswa
-            ['Nama Mahasiswa',          $user?->nama ?? ''],
-            ['Tempat/Tanggal Lahir',    ($peserta?->tempat_lahir ?? '') . '/' . ($peserta?->tanggal_lahir?->format('d/m/Y') ?? '')],
+            ['Nama Mahasiswa', $user?->nama ?? ''],
+            ['Tempat/Tanggal Lahir', ($peserta?->tempat_lahir ?? '') . '/' . ($peserta?->tanggal_lahir?->format('d/m/Y') ?? '')],
             ['NIM Perguruan Tinggi Asal', ''],
             ['NIM Perguruan Tinggi Baru', ''],
         ];
@@ -117,27 +118,27 @@ class TransferHasilWordExport
     private function addMkTable(Section $section, PermohonanRpl $permohonan): void
     {
         $tableStyle = [
-            'borderSize'  => 6,
+            'borderSize' => 6,
             'borderColor' => '000000',
-            'cellMargin'  => 60,
+            'cellMargin' => 60,
         ];
         $table = $section->addTable($tableStyle);
 
         $headerCellStyle = ['bgColor' => 'D9D9D9'];
         $headerTextStyle = ['bold' => true, 'size' => 9];
-        $center          = ['alignment' => 'center'];
+        $center = ['alignment' => 'center'];
 
         $table->addRow(400);
-        $table->addCell(900,  $headerCellStyle)->addText('Kode MK Asal', $headerTextStyle, $center);
+        $table->addCell(900, $headerCellStyle)->addText('Kode MK Asal', $headerTextStyle, $center);
         $table->addCell(2200, $headerCellStyle)->addText('Mata Kuliah Asal', $headerTextStyle, $center);
-        $table->addCell(500,  $headerCellStyle)->addText('SKS', $headerTextStyle, $center);
-        $table->addCell(700,  $headerCellStyle)->addText('Nilai Huruf', $headerTextStyle, $center);
-        $table->addCell(900,  $headerCellStyle)->addText('Kode MK Tujuan', $headerTextStyle, $center);
+        $table->addCell(500, $headerCellStyle)->addText('SKS', $headerTextStyle, $center);
+        $table->addCell(700, $headerCellStyle)->addText('Nilai Huruf', $headerTextStyle, $center);
+        $table->addCell(900, $headerCellStyle)->addText('Kode MK Tujuan', $headerTextStyle, $center);
         $table->addCell(2200, $headerCellStyle)->addText('Mata Kuliah Tujuan', $headerTextStyle, $center);
-        $table->addCell(500,  $headerCellStyle)->addText('SKS', $headerTextStyle, $center);
-        $table->addCell(700,  $headerCellStyle)->addText('Nilai Huruf', $headerTextStyle, $center);
+        $table->addCell(500, $headerCellStyle)->addText('SKS', $headerTextStyle, $center);
+        $table->addCell(700, $headerCellStyle)->addText('Nilai Huruf', $headerTextStyle, $center);
 
-        $cellStyle  = ['size' => 9];
+        $cellStyle = ['size' => 9];
         $cellCenter = ['alignment' => 'center'];
 
         // Only show MK with status Diakui
@@ -145,7 +146,7 @@ class TransferHasilWordExport
             ->where('status', StatusRplMataKuliahEnum::Diakui);
 
         foreach ($mkDiakui as $rplMk) {
-            $mk         = $rplMk->mataKuliah;
+            $mk = $rplMk->mataKuliah;
             $lampauList = $rplMk->matkulLampau;
             $nilaiTujuan = $this->resolveNilai($rplMk);
 
@@ -171,12 +172,12 @@ class TransferHasilWordExport
                     }
                 }
             } else {
-                // Tidak ada MK asal — kolom MK Asal kosong
+                // Jika MK lampau kosong, pakai data MK eksisting untuk kolom asal.
                 $table->addRow();
-                $table->addCell(900)->addText('', $cellStyle);
-                $table->addCell(2200)->addText('', $cellStyle);
-                $table->addCell(500)->addText('', $cellStyle);
-                $table->addCell(700)->addText('', $cellStyle);
+                $table->addCell(900)->addText($mk->kode ?? '', $cellStyle);
+                $table->addCell(2200)->addText($mk->nama ?? '', $cellStyle);
+                $table->addCell(500)->addText((string) ($mk->sks ?? ''), $cellStyle, $cellCenter);
+                $table->addCell(700)->addText($nilaiTujuan?->value ?? '', ['size' => 9, 'bold' => true], $cellCenter);
                 $table->addCell(900)->addText($mk->kode ?? '', $cellStyle);
                 $table->addCell(2200)->addText($mk->nama ?? '', $cellStyle);
                 $table->addCell(500)->addText((string) ($mk->sks ?? ''), $cellStyle, $cellCenter);
@@ -192,10 +193,10 @@ class TransferHasilWordExport
             ->where('status', StatusRplMataKuliahEnum::Diakui);
 
         $totalSksAsal = $mkDiakui
-            ->flatMap(fn ($rplMk) => $rplMk->matkulLampau)
+            ->flatMap(fn($rplMk) => $rplMk->matkulLampau)
             ->sum('sks');
 
-        $sksDiakui = $mkDiakui->sum(fn ($rplMk) => $rplMk->mataKuliah->sks ?? 0);
+        $sksDiakui = $mkDiakui->sum(fn($rplMk) => $rplMk->mataKuliah->sks ?? 0);
 
         $totalSksProdi = $permohonan->programStudi?->total_sks ?? 0;
 
@@ -205,10 +206,10 @@ class TransferHasilWordExport
         $boldStyle = ['bold' => true, 'size' => 10];
 
         $rows = [
-            ['Total SKS Asal',                  $totalSksAsal . ' SKS'],
-            ['Total SKS Diakui',                $sksDiakui . ' SKS'],
-            ['Total SKS yang harus diambil',    ($totalSksProdi - $sksDiakui) . ' SKS'],
-            ['Total SKS Sarjana Terapan',       $totalSksProdi . ' SKS'],
+            ['Total SKS Asal', $totalSksAsal . ' SKS'],
+            ['Total SKS Diakui', $sksDiakui . ' SKS'],
+            ['Total SKS yang harus diambil', ($totalSksProdi - $sksDiakui) . ' SKS'],
+            ['Total SKS Sarjana Terapan', $totalSksProdi . ' SKS'],
         ];
 
         foreach ($rows as [$label, $value]) {
@@ -226,7 +227,7 @@ class TransferHasilWordExport
         $table = $section->addTable(['borderSize' => 0, 'borderColor' => 'FFFFFF', 'cellMargin' => 60]);
         $table->addRow();
 
-        $cellKiri  = $table->addCell(4000);
+        $cellKiri = $table->addCell(4000);
         $cellKanan = $table->addCell(4000);
 
         // Kiri: Wakil Direktur
@@ -275,8 +276,8 @@ class TransferHasilWordExport
         }
 
         $nilaiList = $rplMk->asesmenMandiri
-            ->map(fn ($asm) => $asm->nilaiAsesor?->nilai)
-            ->filter(fn ($v) => $v !== null);
+            ->map(fn($asm) => $asm->nilaiAsesor?->nilai)
+            ->filter(fn($v) => $v !== null);
 
         if ($nilaiList->isEmpty()) {
             return null;

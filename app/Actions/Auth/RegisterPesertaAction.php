@@ -26,6 +26,9 @@ class RegisterPesertaAction
         string $provinsi,
         ?string $kodePos,
         string $telepon,
+        ?string $institusiAsal,
+        ?string $programStudiAsal,
+        ?string $peringkatAkreditasiAsal,
         ?string $foto,
         bool $isDoPcr,
         string $semester,
@@ -33,17 +36,13 @@ class RegisterPesertaAction
         ?UploadedFile $berkasTranskrip,
         ?UploadedFile $berkasKeteranganMK,
     ): Peserta {
-        return DB::transaction(function () use (
-            $nama, $email, $password, $jenisKelamin, $tanggalLahir,
-            $alamat, $kota, $provinsi, $kodePos, $telepon, $foto,
-            $isDoPcr, $semester, $berkasCV, $berkasTranskrip, $berkasKeteranganMK
-        ) {
+        return DB::transaction(function () use ($nama, $email, $password, $jenisKelamin, $tanggalLahir, $alamat, $kota, $provinsi, $kodePos, $telepon, $institusiAsal, $programStudiAsal, $peringkatAkreditasiAsal, $foto, $isDoPcr, $semester, $berkasCV, $berkasTranskrip, $berkasKeteranganMK) {
             $user = User::create([
-                'nama'     => $nama,
-                'email'    => $email,
+                'nama' => $nama,
+                'email' => $email,
                 'password' => Hash::make($password),
-                'role'     => RoleEnum::Peserta,
-                'aktif'    => false,
+                'role' => RoleEnum::Peserta,
+                'aktif' => false,
             ]);
 
             $role = Role::firstOrCreate(['name' => 'peserta', 'guard_name' => 'web']);
@@ -52,17 +51,20 @@ class RegisterPesertaAction
             $tahunAjaran = TahunAjaran::aktif()->first();
 
             $peserta = Peserta::create([
-                'user_id'         => $user->id,
-                'jenis_kelamin'   => $jenisKelamin,
-                'tanggal_lahir'   => $tanggalLahir,
-                'alamat'          => $alamat,
-                'kota'            => $kota,
-                'provinsi'        => $provinsi,
-                'kode_pos'        => $kodePos ?: null,
-                'telepon'         => $telepon,
-                'foto'            => $foto,
-                'is_do_pcr'       => $isDoPcr,
-                'semester'        => $semester,
+                'user_id' => $user->id,
+                'jenis_kelamin' => $jenisKelamin,
+                'tanggal_lahir' => $tanggalLahir,
+                'alamat' => $alamat,
+                'kota' => $kota,
+                'provinsi' => $provinsi,
+                'kode_pos' => $kodePos ?: null,
+                'telepon' => $telepon,
+                'institusi_asal' => $institusiAsal ?: null,
+                'program_studi_asal' => $programStudiAsal ?: null,
+                'peringkat_akreditasi_asal' => $peringkatAkreditasiAsal ?: null,
+                'foto' => $foto,
+                'is_do_pcr' => $isDoPcr,
+                'semester' => $semester,
                 'tahun_ajaran_id' => $tahunAjaran?->id,
             ]);
 
@@ -91,10 +93,10 @@ class RegisterPesertaAction
         $path = $file->store('dokumen/' . $peserta->id, 'local');
 
         DokumenBukti::create([
-            'peserta_id'          => $peserta->id,
-            'jenis_dokumen'       => $jenis,
-            'nama_dokumen'        => $nama,
-            'berkas'              => $path,
+            'peserta_id' => $peserta->id,
+            'jenis_dokumen' => $jenis,
+            'nama_dokumen' => $nama,
+            'berkas' => $path,
             'uploaded_by_user_id' => $userId,
         ]);
     }

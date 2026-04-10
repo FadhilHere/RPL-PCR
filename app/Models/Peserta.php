@@ -32,6 +32,8 @@ class Peserta extends Model
         'pekerjaan',
         'pendidikan_terakhir',
         'institusi_asal',
+        'program_studi_asal',
+        'peringkat_akreditasi_asal',
         'tahun_lulus',
         'is_do_pcr',
         'tanggal_pengunduran_diri',
@@ -44,11 +46,11 @@ class Peserta extends Model
     protected function casts(): array
     {
         return [
-            'tanggal_lahir'            => 'date',
+            'tanggal_lahir' => 'date',
             'tanggal_pengunduran_diri' => 'date',
-            'is_do_pcr'                => 'boolean',
-            'profil_lengkap'           => 'boolean',
-            'semester'                 => \App\Enums\SemesterEnum::class,
+            'is_do_pcr' => 'boolean',
+            'profil_lengkap' => 'boolean',
+            'semester' => \App\Enums\SemesterEnum::class,
         ];
     }
 

@@ -44,6 +44,15 @@ class RegisterForm extends Form
     #[Validate('required|string|max:20')]
     public string $telepon = '';
 
+    #[Validate('nullable|string|max:255')]
+    public ?string $institusiAsal = null;
+
+    #[Validate('nullable|string|max:255')]
+    public ?string $programStudiAsal = null;
+
+    #[Validate('nullable|string|max:100')]
+    public ?string $peringkatAkreditasiAsal = null;
+
     // --- Alumni PCR & Periode ---
 
     public bool $isDoPcr = false;

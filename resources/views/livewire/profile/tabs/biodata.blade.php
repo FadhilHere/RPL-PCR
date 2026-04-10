@@ -172,6 +172,24 @@ new class extends Component {
                     class="w-full h-[40px] px-3.5 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 placeholder:text-[#b0bec5]" />
             </div>
 
+            <div>
+                <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">Perguruan Tinggi Asal</label>
+                <input wire:model="institusiAsal" type="text" placeholder="Nama perguruan tinggi asal"
+                    class="w-full h-[40px] px-3.5 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 placeholder:text-[#b0bec5]" />
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">Program Studi Asal</label>
+                <input wire:model="programStudiAsal" type="text" placeholder="Nama program studi asal"
+                    class="w-full h-[40px] px-3.5 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 placeholder:text-[#b0bec5]" />
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">Peringkat Akreditasi Asal</label>
+                <input wire:model="peringkatAkreditasiAsal" type="text" placeholder="Contoh: Unggul / Baik Sekali / B"
+                    class="w-full h-[40px] px-3.5 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 placeholder:text-[#b0bec5]" />
+            </div>
+
             <div class="md:col-span-2">
                 <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">Alamat</label>
                 <textarea wire:model="alamat" rows="2" placeholder="Alamat lengkap"
