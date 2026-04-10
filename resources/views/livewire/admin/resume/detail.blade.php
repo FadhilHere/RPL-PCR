@@ -52,9 +52,9 @@ new #[Layout('components.layouts.admin')] class extends Component {
     }
 }; ?>
 
-<x-slot:title>Resume Pleno</x-slot:title>
+<x-slot:title>Detail Resume</x-slot:title>
 <x-slot:subtitle>
-    <a href="{{ route('admin.pleno.index') }}" class="text-primary hover:underline">Resume Pleno</a>
+    <a href="{{ route('admin.resume.index') }}" class="text-primary hover:underline">Resume</a>
     &rsaquo; {{ $permohonan->nomor_permohonan }}
 </x-slot:subtitle>
 
@@ -65,7 +65,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
 
         {{-- Header --}}
         <div class="border-b border-[#F0F2F5] pb-5 mb-5">
-            <h2 class="text-[16px] font-bold text-[#1a2a35] mb-1">Resume Asesmen RPL — Pleno</h2>
+            <h2 class="text-[16px] font-bold text-[#1a2a35] mb-1">Resume Asesmen RPL</h2>
             <div class="grid grid-cols-2 gap-x-8 gap-y-2 mt-4 text-[12px]">
                 <div>
                     <span class="text-[#8a9ba8]">Peserta:</span>
@@ -195,9 +195,9 @@ new #[Layout('components.layouts.admin')] class extends Component {
 
     {{-- Back --}}
     <div class="mt-4">
-        <a href="{{ route('admin.pleno.index') }}"
+        <a href="{{ route('admin.resume.index') }}"
            class="text-[13px] text-[#5a6a75] hover:text-primary transition-colors no-underline">
-            ← Kembali ke Resume Pleno
+            ← Kembali ke Resume
         </a>
     </div>
 

@@ -61,7 +61,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     }
 }; ?>
 
-<x-slot:title>Resume Pleno</x-slot:title>
+<x-slot:title>Detail Resume</x-slot:title>
 <x-slot:subtitle>
     <a href="{{ route('asesor.pengajuan.index') }}" class="text-primary hover:underline">Pengajuan RPL</a>
     &rsaquo; <a href="{{ route('asesor.evaluasi.index', $permohonan) }}" class="text-primary hover:underline">{{ $permohonan->nomor_permohonan }}</a>
@@ -69,31 +69,6 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 </x-slot:subtitle>
 
 <div>
-
-    {{-- Export buttons --}}
-    <div class="flex justify-end gap-2 mb-4">
-        <a href="{{ route('export.resume.asesor.excel') }}"
-           class="flex items-center gap-1.5 h-[36px] px-3.5 text-[12px] font-semibold text-[#1e7e3e] border border-[#A8D5B5] rounded-lg hover:bg-[#E6F4EA] transition-colors no-underline">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            Export Excel
-        </a>
-        <a href="{{ route('export.resume.asesor.pdf') }}"
-           class="flex items-center gap-1.5 h-[36px] px-3.5 text-[12px] font-semibold text-[#c62828] border border-[#F5C6C6] rounded-lg hover:bg-[#FCE8E6] transition-colors no-underline">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            Export PDF
-        </a>
-        <a href="{{ route('export.hasil.word', $permohonan) }}"
-           class="flex items-center gap-1.5 h-[36px] px-3.5 text-[12px] font-semibold text-primary border border-[#BDE0EB] rounded-lg hover:bg-[#E8F4F8] transition-colors no-underline">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            Export Word
-        </a>
-    </div>
 
     {{-- Print button (commented out) --}}
     <!-- <div class="flex justify-end mb-4 print:hidden">
@@ -112,7 +87,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
         {{-- Header --}}
         <div class="border-b border-[#F0F2F5] pb-5 mb-5">
-            <h2 class="text-[16px] font-bold text-[#1a2a35] mb-1">Resume Asesmen RPL — Pleno</h2>
+            <h2 class="text-[16px] font-bold text-[#1a2a35] mb-1">Resume Asesmen RPL</h2>
             <div class="grid grid-cols-2 gap-x-8 gap-y-2 mt-4 text-[12px]">
                 <div>
                     <span class="text-[#8a9ba8]">Peserta:</span>

@@ -57,8 +57,8 @@ new #[Layout('components.layouts.admin')] class extends Component {
     }
 }; ?>
 
-<x-slot:title>Resume Pleno</x-slot:title>
-<x-slot:subtitle>Daftar resume pleno seluruh peserta RPL</x-slot:subtitle>
+<x-slot:title>Resume</x-slot:title>
+<x-slot:subtitle>Daftar resume seluruh peserta RPL</x-slot:subtitle>
 
 <div>
 
@@ -159,7 +159,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
                         @endif
                     </td>
                     <td class="px-4 py-3.5 text-center">
-                        <a href="{{ route('admin.pleno.detail', $p) }}"
+                        <a href="{{ route('admin.resume.detail', $p) }}"
                            class="inline-flex items-center gap-1.5 h-[30px] px-3 text-[11px] font-semibold text-primary border border-primary/30 rounded-lg hover:bg-primary hover:text-white transition-colors no-underline">
                             <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>

@@ -31,7 +31,7 @@ Route::prefix('asesor')->middleware(['auth', 'verified', 'role:asesor'])->group(
     Volt::route('pengajuan/{permohonan}/evaluasi', 'asesor.evaluasi.index')->name('asesor.evaluasi.index');
     Volt::route('pengajuan/{permohonan}/evaluasi-transfer', 'asesor.evaluasi.transfer')->name('asesor.evaluasi.transfer');
     Volt::route('pengajuan/{permohonan}/evaluasi/resume', 'asesor.evaluasi.resume')->name('asesor.evaluasi.resume');
-    Volt::route('pleno', 'asesor.pleno.index')->name('asesor.pleno.index');
+    Volt::route('resume', 'asesor.resume.index')->name('asesor.resume.index');
     Volt::route('berita-acara', 'asesor.berita-acara.index')->name('asesor.berita-acara.index');
 });
 
@@ -67,8 +67,8 @@ Route::prefix('admin')->middleware(['auth', 'verified', 'role:admin|admin_baak']
     Volt::route('pengajuan', 'admin.pengajuan.index')->name('admin.pengajuan.index');
     Volt::route('pengajuan/{permohonan}', 'admin.pengajuan.detail')->name('admin.pengajuan.detail');
     Volt::route('jadwal', 'admin.jadwal.index')->name('admin.jadwal.index');
-    Volt::route('pleno', 'admin.pleno.index')->name('admin.pleno.index');
-    Volt::route('pleno/{permohonan}', 'admin.pleno.detail')->name('admin.pleno.detail');
+    Volt::route('resume', 'admin.resume.index')->name('admin.resume.index');
+    Volt::route('resume/{permohonan}', 'admin.resume.detail')->name('admin.resume.detail');
     Volt::route('berita-acara', 'admin.berita-acara.index')->name('admin.berita-acara.index');
 });
 

@@ -280,7 +280,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
                         RoleEnum::Peserta   => $user->peserta?->institusi_asal ?? '—',
                         RoleEnum::Admin     => 'Super Admin',
                         RoleEnum::AdminPmb  => 'Kelola Akun & Verifikasi',
-                        RoleEnum::AdminBaak => 'Jadwal, Pleno & Resume',
+                        RoleEnum::AdminBaak => 'Jadwal & Resume',
                     };
                     $prodiList = $user->role === RoleEnum::Asesor
                         ? $user->asesor?->programStudi->pluck('kode')->implode(', ')
