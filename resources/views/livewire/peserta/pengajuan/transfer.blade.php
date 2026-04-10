@@ -128,6 +128,10 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         $row = $this->matkulLampau[$rplMkId] ?? null;
         if (! $row) return;
 
+        // Normalisasi supaya input teks seperti "a" tetap tersimpan konsisten.
+        $this->matkulLampau[$rplMkId]['nilai_huruf'] = strtoupper(trim((string) ($row['nilai_huruf'] ?? '')));
+        $row = $this->matkulLampau[$rplMkId];
+
         $this->validate([
             "matkulLampau.{$rplMkId}.kode_mk"     => 'required|string|max:20',
             "matkulLampau.{$rplMkId}.nama_mk"     => 'required|string|max:255',
@@ -291,7 +295,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
             <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
         </svg>
         <div>
-            <p class="text-[12px] font-semibold text-[#1a2a35]">Pengajuan Transfer Kredit (RPL I)</p>
+            <p class="text-[12px] font-semibold text-[#1a2a35]">Pengajuan Transfer Kredit</p>
             <p class="text-[12px] text-[#5a6a75] mt-0.5 leading-[1.5]">
                 Untuk setiap mata kuliah, centang jika Anda pernah mengambil mata kuliah sejenis di perguruan tinggi asal, lalu isi datanya. Asesor akan menilai dengan nilai huruf A–C.
             </p>
@@ -421,17 +425,12 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                                    type="number" min="1" max="20" placeholder="3"
                                    class="w-full h-[42px] px-3 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
                         </div>
-                        {{-- Nilai Huruf dari Transkrip --}}
+                        {{-- Nilai dari Transkrip --}}
                         <div class="w-24">
                             <label class="block text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] mb-1">Nilai</label>
-                            <x-form.select
-                                wire:model="matkulLampau.{{ $rplMk->id }}.nilai_huruf"
-                                :options="array_combine(
-                                    array_column(App\Enums\NilaiHurufEnum::cases(), 'value'),
-                                    array_column(App\Enums\NilaiHurufEnum::cases(), 'value')
-                                )"
-                                placeholder="—"
-                            />
+                            <input wire:model="matkulLampau.{{ $rplMk->id }}.nilai_huruf"
+                                   type="text" maxlength="5" placeholder="mis. A"
+                                   class="w-full h-[42px] px-3 text-[13px] uppercase text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
                         </div>
                         <button wire:click="saveRow({{ $rplMk->id }})"
                                 class="h-[42px] px-4 bg-primary hover:bg-[#005f78] text-white text-[12px] font-semibold rounded-xl transition-colors shrink-0">

@@ -17,7 +17,8 @@ class ResumeAsesmenExport implements FromCollection, WithHeadings, WithTitle, Wi
     public function __construct(
         private readonly ?int $prodiId = null,
         private readonly ?int $asesorId = null,
-    ) {}
+    ) {
+    }
 
     public function collection(): Collection
     {
@@ -25,6 +26,7 @@ class ResumeAsesmenExport implements FromCollection, WithHeadings, WithTitle, Wi
             'peserta.user',
             'programStudi',
             'tahunAjaran',
+            'asesor.user',
             'rplMataKuliah.mataKuliah',
         ])->whereNotIn('status', ['draf', 'diajukan']);
 
@@ -37,30 +39,32 @@ class ResumeAsesmenExport implements FromCollection, WithHeadings, WithTitle, Wi
         }
 
         $rows = collect();
-        $no   = 1;
+        $no = 1;
 
         foreach ($query->get() as $p) {
             $sksDiakui = $p->rplMataKuliah
                 ->where('status', StatusRplMataKuliahEnum::Diakui)
                 ->sum(fn($m) => $m->mataKuliah->sks ?? 0);
 
-            $sksTidakDiakui = $p->rplMataKuliah
-                ->where('status', StatusRplMataKuliahEnum::TidakDiakui)
-                ->sum(fn($m) => $m->mataKuliah->sks ?? 0);
+            $totalSksProdi = (int) ($p->programStudi?->total_sks ?? 0);
+            $sksTidakDiakui = $totalSksProdi - $sksDiakui;
+            $asesorNames = $p->asesor->pluck('user.nama')->filter()->implode(', ');
 
             $rows->push([
-                'No'              => $no++,
-                'Nomor Permohonan'=> $p->nomor_permohonan,
-                'Nama Peserta'    => $p->peserta?->user?->nama ?? '—',
-                'Program Studi'   => $p->programStudi?->nama ?? '—',
-                'Tahun Ajaran'    => $p->tahunAjaran?->nama ?? '—',
-                'Jenis RPL'       => $p->jenis_rpl?->label() ?? '—',
-                'Status'          => $p->status->label(),
-                'SKS Diakui'      => $sksDiakui,
-                'SKS Tidak Diakui'=> $sksTidakDiakui,
-                'Total MK'        => $p->rplMataKuliah->count(),
-                'MK Diakui'       => $p->rplMataKuliah->where('status', StatusRplMataKuliahEnum::Diakui)->count(),
-                'Tanggal Pengajuan'=> $p->tanggal_pengajuan?->format('d/m/Y') ?? '—',
+                'No' => $no++,
+                'Nomor Permohonan' => $p->nomor_permohonan,
+                'Nama Peserta' => $p->peserta?->user?->nama ?? '—',
+                'Program Studi' => $p->programStudi?->nama ?? '—',
+                'Tahun Ajaran' => $p->tahunAjaran?->nama ?? '—',
+                'Semester' => $p->semester?->label() ?? '—',
+                'Jenis RPL' => $p->jenis_rpl?->label() ?? '—',
+                'Nama Asesor' => $asesorNames ?: '—',
+                'Status' => $p->status->label(),
+                'SKS Diakui' => $sksDiakui,
+                'SKS Tidak Diakui' => $sksTidakDiakui,
+                'Total MK' => $p->rplMataKuliah->count(),
+                'MK Diakui' => $p->rplMataKuliah->where('status', StatusRplMataKuliahEnum::Diakui)->count(),
+                'Tanggal Pengajuan' => $p->tanggal_pengajuan?->format('d/m/Y') ?? '—',
             ]);
         }
 
@@ -75,7 +79,9 @@ class ResumeAsesmenExport implements FromCollection, WithHeadings, WithTitle, Wi
             'Nama Peserta',
             'Program Studi',
             'Tahun Ajaran',
+            'Semester',
             'Jenis RPL',
+            'Nama Asesor',
             'Status',
             'SKS Diakui',
             'SKS Tidak Diakui',
@@ -94,9 +100,8 @@ class ResumeAsesmenExport implements FromCollection, WithHeadings, WithTitle, Wi
     {
         return [
             1 => [
-                'font' => ['bold' => true],
                 'fill' => [
-                    'fillType'   => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
                     'startColor' => ['rgb' => '004B5F'],
                 ],
                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],

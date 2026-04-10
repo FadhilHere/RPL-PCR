@@ -1,10 +1,16 @@
 {{-- Jadwal Verifikasi Bersama (admin view) --}}
+@php
+    $assignedAsesorIds = $permohonan->asesor->pluck('id')->values()->all();
+    if (empty($assignedAsesorIds) && $latestVb?->asesor_id) {
+        $assignedAsesorIds = [$latestVb->asesor_id];
+    }
+@endphp
 <div class="bg-white rounded-xl border border-[#E5E8EC] overflow-hidden mb-5"
      x-data="{
          showJadwalForm: {{ (!$latestVb) && in_array($permohonan->status, [\App\Enums\StatusPermohonanEnum::Diproses, \App\Enums\StatusPermohonanEnum::Verifikasi]) ? 'true' : 'false' }},
          jadwal: '{{ $latestVb?->jadwal?->format('Y-m-d\TH:i') ?? '' }}',
          catatan: '{{ addslashes($latestVb?->catatan ?? '') }}',
-         selectedAsesorIds: [],
+         selectedAsesorIds: @js($assignedAsesorIds),
          jadwalErrors: {},
          showViewer: false, viewUrl: '', viewType: '', viewName: ''
      }"
@@ -14,7 +20,7 @@
     <div class="flex items-center justify-between px-5 py-3.5 border-b border-[#F0F2F5]">
         <div class="text-[13px] font-semibold text-[#1a2a35]">Verifikasi Bersama</div>
         @if (in_array($permohonan->status, [\App\Enums\StatusPermohonanEnum::Diproses, \App\Enums\StatusPermohonanEnum::Verifikasi]) && $latestVb && $latestVb->status === \App\Enums\StatusVerifikasiEnum::Terjadwal)
-        <button @click="showJadwalForm = !showJadwalForm; jadwal = '{{ $latestVb->jadwal->format('Y-m-d\TH:i') }}'; catatan = '{{ addslashes($latestVb->catatan ?? '') }}'"
+        <button @click="showJadwalForm = !showJadwalForm; jadwal = '{{ $latestVb->jadwal->format('Y-m-d\TH:i') }}'; catatan = '{{ addslashes($latestVb->catatan ?? '') }}'; selectedAsesorIds = @js($assignedAsesorIds)"
                 class="text-[11px] font-semibold text-primary hover:text-[#005f78] transition-colors">
             Edit Jadwal
         </button>

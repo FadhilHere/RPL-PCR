@@ -40,15 +40,25 @@ new #[Layout('components.layouts.admin')] class extends Component {
             return;
         }
 
+        $asesorIds = array_values(array_unique(array_map('intval', $this->formAsesorIds)));
+
         if ($editId) {
-            VerifikasiBersama::findOrFail((int) $editId)->update([
+            $verifikasi = VerifikasiBersama::with('permohonanRpl')->findOrFail((int) $editId);
+
+            $verifikasi->update([
+                'asesor_id' => $asesorIds[0] ?? $verifikasi->asesor_id,
                 'jadwal'  => $tanggal,
                 'catatan' => $catatan ?: null,
             ]);
+
+            if (! empty($asesorIds) && $verifikasi->permohonanRpl) {
+                $asesorDbIds = Asesor::whereIn('id', $asesorIds)->pluck('id')->all();
+                $verifikasi->permohonanRpl->asesor()->sync($asesorDbIds);
+            }
         } else {
             abort_if(empty($permohonanId), 422);
             $permohonan = PermohonanRpl::findOrFail((int) $permohonanId);
-            $action->execute($permohonan, $tanggal, $catatan ?: null, asesorIds: array_map('intval', $this->formAsesorIds));
+            $action->execute($permohonan, $tanggal, $catatan ?: null, asesorIds: $asesorIds);
         }
 
         $this->formAsesorIds = [];
@@ -108,9 +118,12 @@ new #[Layout('components.layouts.admin')] class extends Component {
         this.form = { open: true, editId: null, tanggal: '', catatan: '' };
         $wire.set('formPermohonanId', null);
         $wire.set('searchPermohonan', '');
+        $wire.set('formAsesorIds', []);
     },
-    openEdit(id, permohonanId, tanggal, catatan) {
+    openEdit(id, permohonanId, tanggal, catatan, asesorIds) {
         this.form = { open: true, editId: id, tanggal: tanggal || '', catatan: catatan || '' };
+        $wire.set('formPermohonanId', permohonanId);
+        $wire.set('formAsesorIds', (asesorIds || []).map((item) => Number(item)));
     },
     async simpan() {
         await $wire.simpanJadwal($wire.formPermohonanId, this.form.tanggal, this.form.catatan, this.form.editId);
@@ -205,6 +218,11 @@ new #[Layout('components.layouts.admin')] class extends Component {
                         @endif
                     </td>
                     <td class="px-4 py-3.5 text-center">
+                        @php
+                            $asesorIdsForEdit = $asesorList && $asesorList->isNotEmpty()
+                                ? $asesorList->pluck('id')->values()->all()
+                                : ($vb->asesor_id ? [$vb->asesor_id] : []);
+                        @endphp
                         <div class="flex items-center justify-center gap-1.5">
                             <a href="{{ route('admin.pengajuan.detail', $vb->permohonan_rpl_id) }}"
                                title="Lihat pengajuan"
@@ -212,7 +230,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                             </a>
                             <button
-                                @click="openEdit({{ $vb->id }}, {{ $vb->permohonan_rpl_id }}, '{{ $vb->jadwal?->format('Y-m-d\TH:i') ?? '' }}', @js($vb->catatan))"
+                                @click="openEdit({{ $vb->id }}, {{ $vb->permohonan_rpl_id }}, '{{ $vb->jadwal?->format('Y-m-d\TH:i') ?? '' }}', @js($vb->catatan), @js($asesorIdsForEdit))"
                                 title="Edit jadwal"
                                 class="w-[32px] h-[32px] rounded-md border border-[#D0D5DD] text-[#5a6a75] hover:border-primary hover:text-primary hover:bg-[#E8F4F8] transition-colors flex items-center justify-center">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -305,8 +323,8 @@ new #[Layout('components.layouts.admin')] class extends Component {
                     <x-form.date-picker x-model="form.tanggal" placeholder="Pilih tanggal & waktu..." :enable-time="true" />
                 </div>
 
-                {{-- Asesor (multi-select, hanya saat tambah baru) --}}
-                <div x-show="!form.editId">
+                {{-- Asesor (multi-select) --}}
+                <div>
                     <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">
                         Asesor <span class="normal-case font-normal text-[#b0bec5]">(bisa lebih dari satu)</span>
                     </label>

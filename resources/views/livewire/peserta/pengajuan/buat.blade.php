@@ -93,7 +93,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                         <div class="w-2.5 h-2.5 rounded-full bg-primary"></div>
                         @endif
                     </div>
-                    <span class="text-[13px] font-semibold text-[#1a2a35]">RPL II — Pengakuan Pengalaman Kerja</span>
+                    <span class="text-[13px] font-semibold text-[#1a2a35]">Perolehan Kredit</span>
                 </div>
                 <p class="text-[11px] text-[#8a9ba8] leading-[1.5] pl-7">
                     Untuk pengakuan kompetensi dari pengalaman kerja atau belajar non-formal/informal. Meliputi asesmen mandiri per sub CPMK.
@@ -112,7 +112,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                         <div class="w-2.5 h-2.5 rounded-full bg-primary"></div>
                         @endif
                     </div>
-                    <span class="text-[13px] font-semibold text-[#1a2a35]">RPL I — Transfer Kredit</span>
+                    <span class="text-[13px] font-semibold text-[#1a2a35]">Transfer Kredit</span>
                 </div>
                 <p class="text-[11px] text-[#8a9ba8] leading-[1.5] pl-7">
                     Untuk transfer kredit dari perguruan tinggi lain. Asesor menilai langsung dengan nilai huruf (A–C).

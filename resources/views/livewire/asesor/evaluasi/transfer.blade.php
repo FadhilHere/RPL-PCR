@@ -170,7 +170,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                 <div class="text-[11px] text-[#8a9ba8] mt-0.5">
                     {{ $permohonan->nomor_permohonan }} &middot;
                     {{ $permohonan->programStudi->nama ?? '—' }} &middot;
-                    <span class="font-semibold text-[#b45309]">Transfer Kredit (RPL I)</span>
+                    <span class="font-semibold text-[#b45309]">Transfer Kredit</span>
                 </div>
             </div>
             <a href="{{ route('export.hasil.word', $permohonan) }}"

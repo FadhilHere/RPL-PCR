@@ -84,9 +84,12 @@
             <th>Nomor Permohonan</th>
             <th>Nama Peserta</th>
             <th>Program Studi</th>
+            <th>Semester</th>
             <th>Jenis RPL</th>
+            <th>Nama Asesor</th>
             <th>Status</th>
             <th style="width:55px;text-align:center">SKS Diakui</th>
+            <th style="width:70px;text-align:center">SKS Tidak Diakui</th>
             <th style="width:35px;text-align:center">MK ✓</th>
             <th style="width:35px;text-align:center">MK ✗</th>
         </tr>
@@ -96,15 +99,19 @@
         @php
             $p           = $item['permohonan'];
             $sksDiakui   = $item['sksDiakui'];
+            $sksTidak    = $item['sksTidakDiakui'] ?? 0;
             $mkDiakui    = $item['mkDiakui'];
             $mkTidak     = $item['mkTidakDiakui'];
+            $asesorNames = $p->asesor->pluck('user.nama')->filter()->implode(', ');
         @endphp
         <tr>
             <td style="text-align:center">{{ $i + 1 }}</td>
             <td>{{ $p->nomor_permohonan }}</td>
             <td>{{ $p->peserta?->user?->nama ?? '—' }}</td>
             <td>{{ $p->programStudi?->nama ?? '—' }}</td>
+            <td>{{ $p->semester?->label() ?? '—' }}</td>
             <td>{{ $p->jenis_rpl?->label() ?? '—' }}</td>
+            <td>{{ $asesorNames ?: '—' }}</td>
             <td>
                 @if ($p->status->value === 'disetujui')
                     <span class="badge-diakui">{{ $p->status->label() }}</span>
@@ -115,6 +122,7 @@
                 @endif
             </td>
             <td style="text-align:center">{{ $sksDiakui }}</td>
+            <td style="text-align:center">{{ $sksTidak }}</td>
             <td style="text-align:center" class="badge-diakui">{{ $mkDiakui }}</td>
             <td style="text-align:center" class="badge-tidak">{{ $mkTidak }}</td>
         </tr>
@@ -124,7 +132,9 @@
 
 <div class="summary">
     <strong>Total SKS Diakui:</strong>
-    {{ collect($permohonanList)->sum('sksDiakui') }} SKS dari
+    {{ collect($permohonanList)->sum('sksDiakui') }} SKS,
+    <strong>Total SKS Tidak Diakui:</strong>
+    {{ collect($permohonanList)->sum('sksTidakDiakui') }} SKS dari
     {{ collect($permohonanList)->count() }} pengajuan.
 </div>
 
