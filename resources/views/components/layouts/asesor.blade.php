@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title }} — Sistem RPL PCR</title>
+    <link rel="icon" type="image/png" href="{{ asset('img/logo_akreditasi.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
@@ -49,11 +50,7 @@
         {{-- Logo --}}
         <div class="flex items-center gap-2.5 px-5 py-[18px] border-b border-white/10">
             <div class="w-8 h-8 bg-white rounded-md flex items-center justify-center shrink-0">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#004B5F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                    <path d="M2 17l10 5 10-5"/>
-                    <path d="M2 12l10 5 10-5"/>
-                </svg>
+                <img src="{{ asset('img/logo_akreditasi.png') }}" alt="Logo Akreditasi" class="w-5 h-5 object-contain">
             </div>
             <div>
                 <div class="text-white font-semibold text-[13px] leading-[1.3]">Sistem RPL</div>

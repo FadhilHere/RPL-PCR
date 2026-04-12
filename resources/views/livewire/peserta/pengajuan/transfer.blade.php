@@ -7,6 +7,7 @@ use App\Models\PermohonanRpl;
 use App\Models\RplMataKuliah;
 use App\Models\AsesmenMandiri;
 use App\Enums\JenisRplEnum;
+use App\Enums\NilaiTranskripEnum;
 use App\Enums\StatusPermohonanEnum;
 
 new #[Layout('components.layouts.peserta')] class extends Component {
@@ -128,7 +129,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         $row = $this->matkulLampau[$rplMkId] ?? null;
         if (! $row) return;
 
-        // Normalisasi supaya input teks seperti "a" tetap tersimpan konsisten.
+        // Simpan persis notasi nilai dari peserta (termasuk +/-) secara konsisten uppercase.
         $this->matkulLampau[$rplMkId]['nilai_huruf'] = strtoupper(trim((string) ($row['nilai_huruf'] ?? '')));
         $row = $this->matkulLampau[$rplMkId];
 
@@ -136,7 +137,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
             "matkulLampau.{$rplMkId}.kode_mk"     => 'required|string|max:20',
             "matkulLampau.{$rplMkId}.nama_mk"     => 'required|string|max:255',
             "matkulLampau.{$rplMkId}.sks"         => 'required|integer|min:1|max:20',
-            "matkulLampau.{$rplMkId}.nilai_huruf" => 'nullable|string|in:A,AB,B,BC,C,D,E',
+            "matkulLampau.{$rplMkId}.nilai_huruf" => 'nullable|string|in:' . implode(',', array_column(NilaiTranskripEnum::cases(), 'value')),
         ], [], [
             "matkulLampau.{$rplMkId}.kode_mk"     => 'kode MK',
             "matkulLampau.{$rplMkId}.nama_mk"     => 'nama MK',
@@ -429,7 +430,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                         <div class="w-24">
                             <label class="block text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] mb-1">Nilai</label>
                             <input wire:model="matkulLampau.{{ $rplMk->id }}.nilai_huruf"
-                                   type="text" maxlength="5" placeholder="mis. A"
+                                   type="text" maxlength="5" placeholder="mis. A+ / B+"
                                    class="w-full h-[42px] px-3 text-[13px] uppercase text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
                         </div>
                         <button wire:click="saveRow({{ $rplMk->id }})"

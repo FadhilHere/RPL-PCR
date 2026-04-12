@@ -254,7 +254,7 @@
                 <div class="flex justify-end pt-5 mt-4 border-t border-[#F0F2F5]">
                     <button wire:click="simpanNilaiTransfer({{ $rplMk->id }})"
                             class="h-[46px] px-7 bg-primary hover:bg-[#005f78] text-white text-[13px] font-semibold rounded-xl transition-colors">
-                        Simpan Nilai & Catatan
+                        Simpan Nilai
                     </button>
                 </div>
             </div>
@@ -289,6 +289,9 @@
             {{-- Set Status Override Asesor --}}
             <div class="border-t border-[#F0F2F5] pt-4 mt-4">
                 <div class="text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.8px] mb-3">Timpa Status / Catatan Khusus MK</div>
+                <p class="mb-3 text-[11px] text-[#8a9ba8]">
+                    Status ditentukan otomatis dari nilai huruf. Nilai di bawah C akan tidak diakui.
+                </p>
                 <div class="flex items-start gap-3">
                     <div class="w-[200px] shrink-0">
                         <x-form.select

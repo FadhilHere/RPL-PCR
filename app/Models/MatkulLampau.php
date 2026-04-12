@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\NilaiHurufEnum;
+use App\Enums\NilaiTranskripEnum;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -22,7 +22,7 @@ class MatkulLampau extends Model
     protected function casts(): array
     {
         return [
-            'nilai_huruf' => NilaiHurufEnum::class,
+            'nilai_huruf' => NilaiTranskripEnum::class,
         ];
     }
 

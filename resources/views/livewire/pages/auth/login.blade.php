@@ -33,12 +33,7 @@ new #[Layout('layouts.guest')] class extends Component {
         {{-- Logo --}}
         <div class="relative z-10 flex items-center gap-3 mb-16">
             <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#004B5F" stroke-width="2.2"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                    <path d="M2 17l10 5 10-5" />
-                    <path d="M2 12l10 5 10-5" />
-                </svg>
+                <img src="{{ asset('img/logo_akreditasi.png') }}" alt="Logo Akreditasi" class="w-6 h-6 object-contain">
             </div>
             <div>
                 <div class="text-white font-semibold text-[15px] leading-none mb-0.5">Sistem RPL</div>
@@ -86,13 +81,8 @@ new #[Layout('layouts.guest')] class extends Component {
 
         {{-- Logo mobile (tampil hanya di bawah lg) --}}
         <div class="flex lg:hidden items-center gap-3 mb-10">
-            <div class="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shrink-0">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                    <path d="M2 17l10 5 10-5" />
-                    <path d="M2 12l10 5 10-5" />
-                </svg>
+            <div class="w-9 h-9 bg-white rounded-xl flex items-center justify-center shrink-0">
+                <img src="{{ asset('img/logo_akreditasi.png') }}" alt="Logo Akreditasi" class="w-5 h-5 object-contain">
             </div>
             <div>
                 <div class="text-primary font-semibold text-[15px] leading-none mb-0.5">Sistem RPL</div>
