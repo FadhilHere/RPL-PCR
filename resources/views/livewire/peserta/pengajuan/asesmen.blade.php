@@ -7,6 +7,7 @@ use App\Models\PermohonanRpl;
 use App\Models\RplMataKuliah;
 use App\Models\AsesmenMandiri;
 use App\Models\DokumenBukti;
+use App\Enums\NilaiTranskripEnum;
 use App\Enums\StatusPermohonanEnum;
 
 new #[Layout('components.layouts.peserta')] class extends Component {
@@ -154,11 +155,15 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         $row = $this->matkulLampau[$rplMkId] ?? null;
         if (! $row) return;
 
+        // Simpan persis notasi nilai dari peserta (termasuk +/-) secara konsisten uppercase.
+        $this->matkulLampau[$rplMkId]['nilai_huruf'] = strtoupper(trim((string) ($row['nilai_huruf'] ?? '')));
+        $row = $this->matkulLampau[$rplMkId];
+
         $this->validate([
             "matkulLampau.{$rplMkId}.kode_mk"     => 'required|string|max:20',
             "matkulLampau.{$rplMkId}.nama_mk"     => 'required|string|max:255',
             "matkulLampau.{$rplMkId}.sks"         => 'required|integer|min:1|max:20',
-            "matkulLampau.{$rplMkId}.nilai_huruf" => 'nullable|string|in:A,AB,B,BC,C,D,E',
+            "matkulLampau.{$rplMkId}.nilai_huruf" => 'nullable|string|in:' . implode(',', array_column(NilaiTranskripEnum::cases(), 'value')),
         ], [], [
             "matkulLampau.{$rplMkId}.kode_mk"     => 'kode MK',
             "matkulLampau.{$rplMkId}.nama_mk"     => 'nama MK',
@@ -282,8 +287,9 @@ new #[Layout('components.layouts.peserta')] class extends Component {
 <x-slot:title>Asesmen Mandiri</x-slot:title>
 <x-slot:subtitle><a href="{{ route('peserta.pengajuan.index') }}" class="text-primary hover:underline">Pengajuan RPL</a> &rsaquo; {{ $permohonan->nomor_permohonan }}</x-slot:subtitle>
 
-<div x-data="{ modalBukti: { show: false, pertanyaanId: 0, rplMkId: 0 }, modalAjukan: false, showToast: false }"
-     @notify-saved.window="showToast = true; setTimeout(() => showToast = false, 3000)">
+<div x-data="{ modalBukti: { show: false, pertanyaanId: 0, rplMkId: 0 }, modalAjukan: false, showToast: false, total: {{ $this->totalPertanyaan() }}, dinilai: {{ $this->totalDinilai() }} }"
+    @notify-saved.window="showToast = true; setTimeout(() => showToast = false, 3000)"
+    @progress-updated.window="dinilai = $event.detail.dinilai; total = $event.detail.total">
 
     {{-- Toast Notifikasi --}}
     <div x-show="showToast" x-cloak
@@ -583,14 +589,9 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                     {{-- Nilai Huruf dari Transkrip --}}
                     <div class="w-24">
                         <label class="block text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] mb-1">Nilai</label>
-                        <x-form.select
-                            wire:model="matkulLampau.{{ $rplMk->id }}.nilai_huruf"
-                            :options="array_combine(
-                                array_column(App\Enums\NilaiHurufEnum::cases(), 'value'),
-                                array_column(App\Enums\NilaiHurufEnum::cases(), 'value')
-                            )"
-                            placeholder="—"
-                        />
+                        <input wire:model="matkulLampau.{{ $rplMk->id }}.nilai_huruf"
+                               type="text" maxlength="5" placeholder="mis. A+ / B+"
+                               class="w-full h-[42px] px-3 text-[13px] uppercase text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" />
                     </div>
                     <button wire:click="saveRow({{ $rplMk->id }})"
                             class="h-[42px] px-4 bg-primary hover:bg-[#005f78] text-white text-[12px] font-semibold rounded-xl transition-colors shrink-0">
@@ -696,7 +697,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
             <div class="bg-[#F8FAFB] rounded-xl px-4 py-3 mb-5 space-y-1.5">
                 <div class="flex items-center justify-between text-[12px]">
                     <span class="text-[#8a9ba8]">Pertanyaan dinilai</span>
-                    <span class="font-semibold text-[#1a2a35]">{{ $dinilai }} / {{ $total }}</span>
+                    <span class="font-semibold text-[#1a2a35]"><span x-text="dinilai"></span> / <span x-text="total"></span></span>
                 </div>
                 <div class="flex items-center justify-between text-[12px]">
                     <span class="text-[#8a9ba8]">Berkas diunggah</span>

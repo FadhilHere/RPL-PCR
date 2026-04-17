@@ -8,6 +8,7 @@ use App\Actions\Asesor\HitungKeputusanMkAction;
 use App\Actions\Asesor\SanitizeCatatanAsesorAction;
 use App\Actions\Asesor\SelesaikanVerifikasiAction;
 use App\Actions\Asesor\SimpanStatusMkAction;
+use App\Enums\NilaiHurufEnum;
 use App\Enums\StatusPermohonanEnum;
 use App\Enums\StatusRplMataKuliahEnum;
 use App\Models\Asesor;
@@ -103,20 +104,8 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         $this->dispatch('notify-saved');
     }
 
-    public function simpanNilaiTransfer(SanitizeCatatanAsesorAction $sanitizer, int $rplMkId): void
+    protected function simpanPenilaianTransferMk(\App\Models\RplMataKuliah $rplMk, NilaiHurufEnum $nilaiEnum, SanitizeCatatanAsesorAction $sanitizer): void
     {
-        $nilai = $this->nilaiTransfer[$rplMkId] ?? '';
-
-        $this->validate([
-            "nilaiTransfer.{$rplMkId}" => 'required|in:A,AB,B,BC,C,D,E',
-        ], [], ["nilaiTransfer.{$rplMkId}" => 'grade huruf']);
-
-        $nilaiEnum = \App\Enums\NilaiHurufEnum::from($nilai);
-        $rplMk = \App\Models\RplMataKuliah::query()
-            ->with(['mataKuliah', 'matkulLampau'])
-            ->where('permohonan_rpl_id', $this->permohonan->id)
-            ->findOrFail($rplMkId);
-
         $status = $nilaiEnum->diakui() ? StatusRplMataKuliahEnum::Diakui : StatusRplMataKuliahEnum::TidakDiakui;
 
         $rplMk->update([
@@ -133,7 +122,25 @@ new #[Layout('components.layouts.asesor')] class extends Component {
             }
         }
 
-        $this->mkStatus[$rplMkId] = $status->value;
+        $this->mkStatus[$rplMk->id] = $status->value;
+        $this->dispatch('mk-status-updated', mkId: $rplMk->id, badge: $status->badgeClass(), label: $status->label());
+    }
+
+    public function simpanNilaiTransfer(SanitizeCatatanAsesorAction $sanitizer, int $rplMkId): void
+    {
+        $nilai = $this->nilaiTransfer[$rplMkId] ?? '';
+
+        $this->validate([
+            "nilaiTransfer.{$rplMkId}" => 'required|in:' . implode(',', array_column(NilaiHurufEnum::cases(), 'value')),
+        ], [], ["nilaiTransfer.{$rplMkId}" => 'grade huruf']);
+
+        $nilaiEnum = NilaiHurufEnum::from($nilai);
+        $rplMk = \App\Models\RplMataKuliah::query()
+            ->with(['mataKuliah', 'matkulLampau'])
+            ->where('permohonan_rpl_id', $this->permohonan->id)
+            ->findOrFail($rplMkId);
+
+        $this->simpanPenilaianTransferMk($rplMk, $nilaiEnum, $sanitizer);
         $this->permohonan->refresh();
         $this->dispatch('notify-saved');
     }
@@ -211,8 +218,41 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         $this->permohonan->load('rplMataKuliah.asesmenMandiri.evaluasiVatm');
     }
 
-    public function finalisasi(FinalisasiPermohonanAction $action): void
+    public function finalisasi(FinalisasiPermohonanAction $action, SanitizeCatatanAsesorAction $sanitizer): void
     {
+        $rplMataKuliah = $this->permohonan->rplMataKuliah()
+            ->with(['mataKuliah', 'matkulLampau'])
+            ->get();
+
+        $belumDinilai = [];
+
+        foreach ($rplMataKuliah as $rplMk) {
+            if (! ($rplMk->has_mk_sejenis && $rplMk->matkulLampau->isNotEmpty())) {
+                continue;
+            }
+
+            $nilaiTerpilih = (string) ($this->nilaiTransfer[$rplMk->id] ?? $rplMk->nilai_transfer ?? '');
+            $nilaiEnum     = $nilaiTerpilih !== '' ? NilaiHurufEnum::tryFrom($nilaiTerpilih) : null;
+
+            if (! $nilaiEnum) {
+                $belumDinilai[] = $rplMk->mataKuliah->kode ?? ('MK #' . $rplMk->id);
+                continue;
+            }
+
+            $this->nilaiTransfer[$rplMk->id] = $nilaiEnum->value;
+            $this->simpanPenilaianTransferMk($rplMk, $nilaiEnum, $sanitizer);
+        }
+
+        if ($belumDinilai !== []) {
+            $this->dispatch(
+                'notify-error',
+                message: 'Masih ada mata kuliah transfer yang belum dinilai: ' . implode(', ', $belumDinilai) . '.'
+            );
+            return;
+        }
+
+        $this->permohonan->refresh();
+
         try {
             $action->execute($this->permohonan);
         } catch (\DomainException $e) {
@@ -239,6 +279,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
         $action->execute($this->permohonan, $rplMkId, $status, $this->mkCatatan[$rplMkId] ?? null);
 
+        $this->dispatch('mk-status-updated', mkId: $rplMkId, badge: $status->badgeClass(), label: $status->label());
         $this->permohonan->refresh();
         $this->dispatch('notify-saved');
     }
@@ -529,13 +570,34 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     {{-- Tombol Selesai (Finalisasi Permohonan) --}}
     @if ($permohonan->status === StatusPermohonanEnum::Asesmen)
         @php
-            $sksDiakuiPreview = $permohonan->rplMataKuliah
-                ->where('status', StatusRplMataKuliahEnum::Diakui)
-                ->sum(fn ($mk) => $mk->mataKuliah->sks ?? 0);
+            $nilaiTransferState = $this->nilaiTransfer ?? [];
+
+            $statusPrediksiMk = $permohonan->rplMataKuliah->mapWithKeys(function ($mk) use ($nilaiTransferState) {
+                if ($mk->has_mk_sejenis && $mk->matkulLampau->isNotEmpty()) {
+                    $nilai     = (string) ($nilaiTransferState[$mk->id] ?? $mk->nilai_transfer ?? '');
+                    $nilaiEnum = $nilai !== '' ? NilaiHurufEnum::tryFrom($nilai) : null;
+
+                    if (! $nilaiEnum) {
+                        return [$mk->id => StatusRplMataKuliahEnum::Menunggu];
+                    }
+
+                    return [$mk->id => $nilaiEnum->diakui()
+                        ? StatusRplMataKuliahEnum::Diakui
+                        : StatusRplMataKuliahEnum::TidakDiakui];
+                }
+
+                return [$mk->id => $mk->status ?? StatusRplMataKuliahEnum::Menunggu];
+            });
+
+            $sksDiakuiPreview = $permohonan->rplMataKuliah->sum(fn ($mk) =>
+                ($statusPrediksiMk[$mk->id] ?? StatusRplMataKuliahEnum::Menunggu) === StatusRplMataKuliahEnum::Diakui
+                    ? ($mk->mataKuliah->sks ?? 0)
+                    : 0
+            );
             $totalSksProdi   = $permohonan->programStudi->total_sks ?? 0;
             $persenSks       = $totalSksProdi > 0 ? round($sksDiakuiPreview / $totalSksProdi * 100) : 0;
             $akanDisetujui   = $totalSksProdi > 0 && $sksDiakuiPreview >= ($totalSksProdi * 0.5);
-            $masihMenunggu   = $permohonan->rplMataKuliah->contains(fn ($mk) => $mk->status === StatusRplMataKuliahEnum::Menunggu);
+            $masihMenunggu   = $statusPrediksiMk->contains(fn ($st) => $st === StatusRplMataKuliahEnum::Menunggu);
         @endphp
 
         <div x-data="{ openFinal: false }" class="mt-6 mb-4">
