@@ -5,6 +5,12 @@ use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 use App\Http\Controllers\BerkasController;
 use App\Http\Controllers\ExportController;
+use App\Http\Controllers\WilayahController;
+
+Route::prefix('api/wilayah')->middleware('throttle:120,1')->group(function () {
+    Route::get('provinces', [WilayahController::class, 'provinces'])->name('wilayah.provinces');
+    Route::get('regencies/{provinceCode}', [WilayahController::class, 'regencies'])->name('wilayah.regencies');
+});
 
 Route::view('profile', 'profile')
     ->middleware(['auth'])

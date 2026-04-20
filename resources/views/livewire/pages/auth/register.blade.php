@@ -297,36 +297,139 @@ new #[Layout('layouts.guest')] class extends Component {
                             @error('form.alamat') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
                         </div>
 
-                        {{-- Provinsi, Kota, Kode Pos (satu baris) via wilayah.id API --}}
+                        {{-- Provinsi, Kota, Kode Pos (satu baris) via API internal --}}
                         <div class="col-span-2" x-data="{
-                            provOpen: false, kotaOpen: false,
-                            provinces: [], regencies: [],
-                            loadingProv: true, loadingKota: false,
+                            provOpen: false,
+                            kotaOpen: false,
+                            provinces: [],
+                            regencies: [],
+                            loadingProv: true,
+                            loadingKota: false,
                             provName: @entangle('form.provinsi').live,
                             kotaName: @entangle('form.kota').live,
                             provCode: null,
-                            provSearch: '', kotaSearch: '',
+                            provSearch: '',
+                            kotaSearch: '',
+                            apiBase: @js(url('/api/wilayah')),
+                            apiError: '',
+                            manualLocation: false,
                             get filteredProv() { return this.provinces.filter(p => p.name.toLowerCase().includes(this.provSearch.toLowerCase())); },
                             get filteredKota() { return this.regencies.filter(r => r.name.toLowerCase().includes(this.kotaSearch.toLowerCase())); },
+                            async fetchJson(url) {
+                                const controller = new AbortController();
+                                const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+                                try {
+                                    const response = await fetch(url, {
+                                        headers: { Accept: 'application/json' },
+                                        credentials: 'same-origin',
+                                        signal: controller.signal,
+                                    });
+
+                                    let payload = {};
+                                    try {
+                                        payload = await response.json();
+                                    } catch (_) {
+                                        payload = {};
+                                    }
+
+                                    if (!response.ok) {
+                                        throw new Error(payload.message || 'Permintaan data wilayah gagal.');
+                                    }
+
+                                    return payload;
+                                } finally {
+                                    clearTimeout(timeoutId);
+                                }
+                            },
                             async init() {
-                                const r = await fetch('https://wilayah.id/api/provinces.json');
-                                const d = await r.json();
-                                this.provinces = d.data ?? [];
-                                this.loadingProv = false;
+                                this.loadingProv = true;
+                                this.apiError = '';
+
+                                try {
+                                    const data = await this.fetchJson(this.apiBase + '/provinces');
+                                    this.provinces = Array.isArray(data.data) ? data.data : [];
+
+                                    if (this.provinces.length === 0) {
+                                        this.manualLocation = true;
+                                        this.apiError = data.message || 'Data provinsi belum tersedia.';
+                                        return;
+                                    }
+
+                                    if (this.provName) {
+                                        const found = this.provinces.find((province) => province.name === this.provName);
+                                        if (found) {
+                                            this.provCode = found.code;
+                                            await this.loadRegencies(found.code, false);
+                                        }
+                                    }
+                                } catch (error) {
+                                    this.manualLocation = true;
+                                    this.apiError = error.message || 'Gagal memuat data wilayah. Silakan isi manual.';
+                                } finally {
+                                    this.loadingProv = false;
+                                }
+                            },
+                            async loadRegencies(code, resetKota = true) {
+                                if (resetKota) {
+                                    this.kotaName = '';
+                                }
+
+                                this.kotaOpen = false;
+                                this.kotaSearch = '';
+                                this.regencies = [];
+                                this.loadingKota = true;
+                                this.apiError = '';
+
+                                try {
+                                    const data = await this.fetchJson(this.apiBase + '/regencies/' + encodeURIComponent(code));
+                                    this.regencies = Array.isArray(data.data) ? data.data : [];
+
+                                    if (this.regencies.length === 0) {
+                                        this.manualLocation = true;
+                                        this.apiError = data.message || 'Data kota/kabupaten belum tersedia.';
+                                    }
+                                } catch (error) {
+                                    this.manualLocation = true;
+                                    this.apiError = error.message || 'Gagal memuat data kota/kabupaten. Silakan isi manual.';
+                                } finally {
+                                    this.loadingKota = false;
+                                }
                             },
                             async selectProv(code, name) {
-                                this.provName = name; this.provCode = code; this.provOpen = false; this.provSearch = '';
-                                this.kotaName = ''; this.regencies = []; this.loadingKota = true;
-                                const r = await fetch('https://wilayah.id/api/regencies/' + code + '.json');
-                                const d = await r.json();
-                                this.regencies = d.data ?? []; this.loadingKota = false;
+                                this.provName = name;
+                                this.provCode = code;
+                                this.provOpen = false;
+                                this.provSearch = '';
+                                await this.loadRegencies(code, true);
                             },
-                            selectKota(name) { this.kotaName = name; this.kotaOpen = false; this.kotaSearch = ''; }
+                            selectKota(name) {
+                                this.kotaName = name;
+                                this.kotaOpen = false;
+                                this.kotaSearch = '';
+                            },
+                            async toggleManualLocation() {
+                                this.manualLocation = !this.manualLocation;
+
+                                if (!this.manualLocation && this.provinces.length === 0) {
+                                    await this.init();
+                                }
+                            },
                         }">
-                            <div class="grid grid-cols-3 gap-x-3">
+                            <div class="mb-2 flex items-center justify-between gap-3">
+                                <p x-show="apiError" x-cloak x-text="apiError" class="text-[11px] text-[#d35400]"></p>
+                                <button
+                                    type="button"
+                                    @click="toggleManualLocation()"
+                                    class="text-[11px] font-semibold text-primary hover:underline whitespace-nowrap"
+                                    x-text="manualLocation ? 'Gunakan daftar otomatis' : 'Isi manual'"
+                                ></button>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-x-3 gap-y-3">
 
                                 {{-- Provinsi --}}
-                                <div>
+                                <div x-show="!manualLocation" x-cloak>
                                     <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.8px] mb-1">Provinsi <span class="text-[#D2092F]">*</span></label>
                                     <div class="relative">
                                         <button type="button" @click="provOpen=!provOpen; if(provOpen) $nextTick(()=>$refs.provSearch.focus())"
@@ -356,11 +459,16 @@ new #[Layout('layouts.guest')] class extends Component {
                                             </div>
                                         </div>
                                     </div>
-                                    @error('form.provinsi') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
+                                </div>
+
+                                <div x-show="manualLocation" x-cloak>
+                                    <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.8px] mb-1">Provinsi <span class="text-[#D2092F]">*</span></label>
+                                    <input wire:model="form.provinsi" type="text" placeholder="Contoh: Riau"
+                                        class="w-full h-[40px] px-3.5 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/10 placeholder:text-[#b0bec5]" />
                                 </div>
 
                                 {{-- Kota / Kabupaten --}}
-                                <div>
+                                <div x-show="!manualLocation" x-cloak>
                                     <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.8px] mb-1">Kota / Kabupaten <span class="text-[#D2092F]">*</span></label>
                                     <div class="relative">
                                         <button type="button"
@@ -389,7 +497,12 @@ new #[Layout('layouts.guest')] class extends Component {
                                             </div>
                                         </div>
                                     </div>
-                                    @error('form.kota') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
+                                </div>
+
+                                <div x-show="manualLocation" x-cloak>
+                                    <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.8px] mb-1">Kota / Kabupaten <span class="text-[#D2092F]">*</span></label>
+                                    <input wire:model="form.kota" type="text" placeholder="Contoh: Pekanbaru"
+                                        class="w-full h-[40px] px-3.5 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/10 placeholder:text-[#b0bec5]" />
                                 </div>
 
                                 {{-- Kode Pos --}}
@@ -399,10 +512,13 @@ new #[Layout('layouts.guest')] class extends Component {
                                     </label>
                                     <input wire:model="form.kodePos" type="text" placeholder="Kode pos" maxlength="10"
                                         class="w-full h-[40px] px-3.5 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/10 placeholder:text-[#b0bec5]" />
-                                    @error('form.kodePos') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
                                 </div>
 
                             </div>
+
+                            @error('form.provinsi') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
+                            @error('form.kota') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
+                            @error('form.kodePos') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
                         </div>
 
                     </div>
