@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -12,6 +13,18 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
+
+        // Avoid guest middleware redirect loops on `/` by sending authenticated users
+        // directly to their role-specific dashboard.
+        $middleware->redirectUsersTo(function (Request $request): string {
+            $user = $request->user();
+
+            if (! $user) {
+                return '/';
+            }
+
+            return $user->role?->dashboardRoute() ?? '/';
+        });
 
         $middleware->alias([
             'role'             => \Spatie\Permission\Middleware\RoleMiddleware::class,
