@@ -23,7 +23,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
         $this->peserta = $peserta->load('user', 'dokumenBukti');
     }
 
-    public function upload(UploadDokumenPesertaAction $action): void
+    public function uploadBerkas(UploadDokumenPesertaAction $action): void
     {
         $this->validate([
             'berkas' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
@@ -150,10 +150,10 @@ new #[Layout('components.layouts.admin')] class extends Component {
                 </div>
             </div>
 
-            <button wire:click="upload" wire:loading.attr="disabled" wire:target="upload"
+            <button wire:click="uploadBerkas" wire:loading.attr="disabled" wire:target="uploadBerkas"
                 class="mt-4 w-full h-[42px] bg-primary hover:bg-[#005f78] text-white text-[13px] font-semibold rounded-xl transition-colors disabled:opacity-60">
-                <span wire:loading.remove wire:target="upload">Upload Berkas</span>
-                <span wire:loading wire:target="upload">Mengupload...</span>
+                <span wire:loading.remove wire:target="uploadBerkas">Upload Berkas</span>
+                <span wire:loading wire:target="uploadBerkas">Mengupload...</span>
             </button>
         </div>
 
