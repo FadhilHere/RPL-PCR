@@ -145,7 +145,6 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         $this->dispatch('notify-saved');
     }
 
-    #[\Livewire\Attributes\Renderless]
     public function saveNilaiAsesor(int $asesmenMandiriId, int $nilai): void
     {
         abort_if($nilai < 1 || $nilai > 5, 422);
@@ -192,6 +191,8 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                 $this->mkStatus[$rplMk->id] = $status->value;
                 $this->dispatch('mk-status-updated', mkId: $rplMk->id, badge: $status->badgeClass(), label: $status->label());
             }
+
+            $this->permohonan->refresh();
         }
     }
 
@@ -571,8 +572,9 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     @if ($permohonan->status === StatusPermohonanEnum::Asesmen)
         @php
             $nilaiTransferState = $this->nilaiTransfer ?? [];
+            $mkStatusState      = $this->mkStatus ?? [];
 
-            $statusPrediksiMk = $permohonan->rplMataKuliah->mapWithKeys(function ($mk) use ($nilaiTransferState) {
+            $statusPrediksiMk = $permohonan->rplMataKuliah->mapWithKeys(function ($mk) use ($nilaiTransferState, $mkStatusState) {
                 if ($mk->has_mk_sejenis && $mk->matkulLampau->isNotEmpty()) {
                     $nilai     = (string) ($nilaiTransferState[$mk->id] ?? $mk->nilai_transfer ?? '');
                     $nilaiEnum = $nilai !== '' ? NilaiHurufEnum::tryFrom($nilai) : null;
@@ -586,7 +588,8 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                         : StatusRplMataKuliahEnum::TidakDiakui];
                 }
 
-                return [$mk->id => $mk->status ?? StatusRplMataKuliahEnum::Menunggu];
+                $statusValue = $mkStatusState[$mk->id] ?? $mk->status?->value ?? StatusRplMataKuliahEnum::Menunggu->value;
+                return [$mk->id => StatusRplMataKuliahEnum::from($statusValue)];
             });
 
             $sksDiakuiPreview = $permohonan->rplMataKuliah->sum(fn ($mk) =>
