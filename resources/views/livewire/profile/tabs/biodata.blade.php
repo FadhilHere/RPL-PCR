@@ -184,6 +184,37 @@ new class extends Component {
                     class="w-full h-[40px] px-3.5 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 placeholder:text-[#b0bec5]" />
             </div>
 
+            @if (!$enforceOwnership)
+            <div x-data="{
+                open: false,
+                val: @entangle('semester').live,
+                opts: [{v:'ganjil',l:'Ganjil'},{v:'genap',l:'Genap'}],
+                get label() { return this.opts.find(o=>o.v===this.val)?.l ?? 'Pilih semester'; }
+            }">
+                <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">
+                    Semester <span class="text-[10px] font-normal text-[#8a9ba8] normal-case">(admin)</span>
+                </label>
+                <div class="relative">
+                    <button type="button" @click="open=!open"
+                        :class="open ? 'border-primary ring-2 ring-primary/10' : 'border-[#E0E5EA] hover:border-[#C5CDD5]'"
+                        class="w-full h-[40px] px-3.5 flex items-center justify-between bg-white border rounded-xl text-[13px] transition-all">
+                        <span :class="val ? 'text-[#1a2a35]' : 'text-[#b0bec5]'" x-text="label"></span>
+                        <svg class="w-4 h-4 text-[#8a9ba8] shrink-0" :class="open && 'rotate-180'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div x-show="open" @click.outside="open=false" x-cloak
+                        x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0"
+                        class="absolute z-20 mt-1 w-full bg-white border border-[#E0E5EA] rounded-xl shadow-lg overflow-hidden">
+                        <template x-for="o in opts" :key="o.v">
+                            <button type="button" @click="val=o.v; open=false"
+                                :class="val===o.v ? 'bg-[#E8F4F8] text-primary font-semibold' : 'hover:bg-[#F4F6F8] text-[#1a2a35]'"
+                                class="w-full px-3.5 py-2 text-left text-[13px] transition-colors" x-text="o.l"></button>
+                        </template>
+                    </div>
+                </div>
+                @error('semester') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
+            </div>
+            @endif
+
             <div>
                 <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">Peringkat Akreditasi Asal</label>
                 <input wire:model="peringkatAkreditasiAsal" type="text" placeholder="Contoh: Unggul / Baik Sekali / B"

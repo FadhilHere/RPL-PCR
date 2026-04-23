@@ -25,6 +25,7 @@ trait HasProfilBiodataForm
     public string $institusiAsal = '';
     public string $programStudiAsal = '';
     public string $peringkatAkreditasiAsal = '';
+    public string $semester = '';
     public $foto = null;
 
     protected function fillBiodataForm(Peserta $peserta): void
@@ -57,6 +58,7 @@ trait HasProfilBiodataForm
         $this->institusiAsal = $peserta->institusi_asal ?? '';
         $this->programStudiAsal = $peserta->program_studi_asal ?? '';
         $this->peringkatAkreditasiAsal = $peserta->peringkat_akreditasi_asal ?? '';
+        $this->semester = $peserta->semester?->value ?? '';
     }
 
     /**
@@ -84,6 +86,7 @@ trait HasProfilBiodataForm
             'institusiAsal' => 'nullable|string|max:255',
             'programStudiAsal' => 'nullable|string|max:255',
             'peringkatAkreditasiAsal' => 'nullable|string|max:100',
+            'semester' => 'nullable|in:ganjil,genap',
             'foto' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ];
     }
@@ -111,6 +114,7 @@ trait HasProfilBiodataForm
             'institusi_asal' => $this->toNull($this->institusiAsal),
             'program_studi_asal' => $this->toNull($this->programStudiAsal),
             'peringkat_akreditasi_asal' => $this->toNull($this->peringkatAkreditasiAsal),
+            'semester' => $this->toNull($this->semester),
         ];
     }
 

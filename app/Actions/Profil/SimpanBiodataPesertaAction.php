@@ -50,6 +50,8 @@ class SimpanBiodataPesertaAction
             $payload['foto'] = $fotoPath;
         }
 
+        $payload['semester'] = $biodata['semester'] ?? null;
+
         $peserta->update($payload);
     }
 }
