@@ -19,6 +19,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Livewire temporary upload URLs expire quickly by default (5 min).
+        // Use a longer configurable window to reduce failures on slower networks/devices.
+        config()->set('livewire.temporary_file_upload.max_upload_time', (int) env('LIVEWIRE_MAX_UPLOAD_TIME', 15));
     }
 }
