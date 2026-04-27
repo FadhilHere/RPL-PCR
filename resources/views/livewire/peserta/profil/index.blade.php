@@ -9,7 +9,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
     public int $pesertaId;
 
     public string $password = '';
-    public string $passwordConfirmation = '';
+    public string $password_confirmation = '';
 
     public bool $mustChangePassword = false;
 
@@ -31,7 +31,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
     {
         $this->validate([
             'password' => ['required', 'string', Password::min(8), 'confirmed'],
-            'passwordConfirmation' => ['required'],
+            'password_confirmation' => ['required'],
         ], [
             'password.required' => 'Password wajib diisi.',
             'password.min' => 'Password minimal 8 karakter.',
@@ -40,7 +40,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
 
         auth()->user()->update(['password' => Hash::make($this->password)]);
 
-        $this->reset('password', 'passwordConfirmation');
+        $this->reset('password', 'password_confirmation');
         $this->mustChangePassword = false;
 
         $this->dispatch('password-saved');
@@ -144,14 +144,14 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                 <div>
                     <label class="block text-[11px] font-semibold text-[#5a6a75] uppercase tracking-[0.7px] mb-1.5">Konfirmasi Password <span class="text-[#D2092F]">*</span></label>
                     <div class="relative" x-data="{ show: false }">
-                        <input wire:model="passwordConfirmation" :type="show ? 'text' : 'password'" placeholder="Ulangi password baru"
+                        <input wire:model="password_confirmation" :type="show ? 'text' : 'password'" placeholder="Ulangi password baru"
                             class="w-full h-[40px] pl-3.5 pr-9 text-[13px] text-[#1a2a35] bg-white border border-[#E0E5EA] rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 placeholder:text-[#b0bec5]" />
                         <button type="button" @click="show = !show" class="absolute right-3 top-1/2 -translate-y-1/2 text-[#b0bec5] hover:text-[#5a6a75] transition-colors">
                             <svg x-show="!show" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
                             <svg x-show="show" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                         </button>
                     </div>
-                    @error('passwordConfirmation') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
+                    @error('password_confirmation') <p class="mt-1 text-[11px] text-[#c62828]">{{ $message }}</p> @enderror
                 </div>
             </div>
 
