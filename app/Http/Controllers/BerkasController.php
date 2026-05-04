@@ -179,12 +179,17 @@ class BerkasController extends Controller
     {
         $this->authorizeDokumen($dokumen);
 
-        $path = Storage::disk('local')->path($dokumen->berkas);
-        $mimeType = Storage::disk('local')->mimeType($dokumen->berkas);
+        $disk = Storage::disk('local');
+        // Read the whole file to avoid HTTP/2 streaming issues on shared hosting.
+        $contents = $disk->get($dokumen->berkas);
+        $size = $disk->size($dokumen->berkas);
+        $mimeType = $disk->mimeType($dokumen->berkas) ?: 'application/octet-stream';
 
-        return response()->file($path, [
+        return response($contents, 200, [
             'Content-Type' => $mimeType,
+            'Content-Length' => (string) $size,
             'Content-Disposition' => 'inline; filename="' . $dokumen->nama_dokumen . '"',
+            'X-Accel-Buffering' => 'no',
         ]);
     }
 
@@ -200,7 +205,17 @@ class BerkasController extends Controller
         $namaPeserta = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $namaPeserta);
         $downloadName = $namaFile . '_' . $namaPeserta . ($ext ? '.' . $ext : '');
 
-        return Storage::disk('local')->download($dokumen->berkas, $downloadName);
+        $disk = Storage::disk('local');
+        $contents = $disk->get($dokumen->berkas);
+        $size = $disk->size($dokumen->berkas);
+        $mimeType = $disk->mimeType($dokumen->berkas) ?: 'application/octet-stream';
+
+        return response($contents, 200, [
+            'Content-Type' => $mimeType,
+            'Content-Length' => (string) $size,
+            'Content-Disposition' => 'attachment; filename="' . $downloadName . '"',
+            'X-Accel-Buffering' => 'no',
+        ]);
     }
 
     // ======================== Verifikasi Bersama ========================
