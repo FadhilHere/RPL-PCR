@@ -187,79 +187,22 @@ class BerkasController extends Controller
 
     public function viewDokumen(DokumenBukti $dokumen)
     {
-        try {
-            \Log::info('viewDokumen: start', [
-                'dokumen_id' => $dokumen->id,
-                'berkas' => $dokumen->berkas,
-                'nama_dokumen' => $dokumen->nama_dokumen,
-            ]);
+        $this->authorizeDokumen($dokumen);
 
-            $this->authorizeDokumen($dokumen);
-            \Log::info('viewDokumen: authorized', ['dokumen_id' => $dokumen->id]);
+        $path = Storage::disk('local')->path($dokumen->berkas);
+        $mimeType = Storage::disk('local')->mimeType($dokumen->berkas);
 
-            $path = Storage::disk('local')->path($dokumen->berkas);
-            \Log::info('viewDokumen: resolved path', [
-                'dokumen_id' => $dokumen->id,
-                'path' => $path,
-                'exists' => file_exists($path),
-                'readable' => is_readable($path),
-                'size' => file_exists($path) ? filesize($path) : null,
-            ]);
+        $ext = strtolower(pathinfo($dokumen->berkas, PATHINFO_EXTENSION));
+        $filename = $dokumen->nama_dokumen . ($ext ? '.' . $ext : '');
 
-            if (!file_exists($path)) {
-                \Log::error('viewDokumen: file not found', [
-                    'dokumen_id' => $dokumen->id,
-                    'path' => $path,
-                ]);
-                abort(404, 'File tidak ditemukan');
-            }
-
-            if (!is_readable($path)) {
-                \Log::error('viewDokumen: file not readable', [
-                    'dokumen_id' => $dokumen->id,
-                    'path' => $path,
-                ]);
-                abort(500, 'File tidak dapat dibaca');
-            }
-
-            $mimeType = Storage::disk('local')->mimeType($dokumen->berkas);
-            \Log::info('viewDokumen: mime detected', [
-                'dokumen_id' => $dokumen->id,
-                'mime' => $mimeType,
-            ]);
-
-            $ext = strtolower(pathinfo($dokumen->berkas, PATHINFO_EXTENSION));
-            $filename = $dokumen->nama_dokumen . ($ext ? '.' . $ext : '');
-
-            $disposition = HeaderUtils::makeDisposition(
+        return response()->file($path, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => HeaderUtils::makeDisposition(
                 ResponseHeaderBag::DISPOSITION_INLINE,
                 $filename,
                 $this->asciiFallbackFilename($filename),
-            );
-
-            \Log::info('viewDokumen: sending response', [
-                'dokumen_id' => $dokumen->id,
-                'filename' => $filename,
-                'disposition' => $disposition,
-            ]);
-
-            return response()->file($path, [
-                'Content-Type' => $mimeType,
-                'Content-Disposition' => $disposition,
-            ]);
-        } catch (\Throwable $e) {
-            \Log::error('viewDokumen: exception caught', [
-                'dokumen_id' => $dokumen->id ?? null,
-                'berkas' => $dokumen->berkas ?? null,
-                'message' => $e->getMessage(),
-                'class' => get_class($e),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            throw $e;
-        }
+            ),
+        ]);
     }
 
     public function downloadDokumen(DokumenBukti $dokumen)
