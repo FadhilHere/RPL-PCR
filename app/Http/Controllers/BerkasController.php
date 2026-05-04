@@ -23,6 +23,8 @@ use Illuminate\Support\Facades\Validator;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\SimpleType\Jc;
+use Symfony\Component\HttpFoundation\HeaderUtils;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 
 class BerkasController extends Controller
 {
@@ -161,6 +163,14 @@ class BerkasController extends Controller
         return 'Berita_Acara_' . $asesorSlug . '_' . $tahunSlug . '_' . now()->format('Ymd_His') . '.' . $extension;
     }
 
+    private function asciiFallbackFilename(string $filename): string
+    {
+        $ascii = preg_replace('/[^\x20-\x7E]/', '_', $filename) ?? 'file';
+        $ascii = preg_replace('/[\\\\\/:*?"<>|]+/', '_', $ascii) ?? 'file';
+
+        return trim($ascii) !== '' ? $ascii : 'file';
+    }
+
     // ======================== Dokumen Bukti ========================
 
     private function authorizeDokumen(DokumenBukti $dokumen): void
@@ -182,9 +192,16 @@ class BerkasController extends Controller
         $path = Storage::disk('local')->path($dokumen->berkas);
         $mimeType = Storage::disk('local')->mimeType($dokumen->berkas);
 
+        $ext = strtolower(pathinfo($dokumen->berkas, PATHINFO_EXTENSION));
+        $filename = $dokumen->nama_dokumen . ($ext ? '.' . $ext : '');
+
         return response()->file($path, [
             'Content-Type' => $mimeType,
-            'Content-Disposition' => 'inline; filename="' . $dokumen->nama_dokumen . '"',
+            'Content-Disposition' => HeaderUtils::makeDisposition(
+                ResponseHeaderBag::DISPOSITION_INLINE,
+                $filename,
+                $this->asciiFallbackFilename($filename),
+            ),
         ]);
     }
 
@@ -223,9 +240,16 @@ class BerkasController extends Controller
         $path = Storage::disk('local')->path($vb->berkas);
         $mimeType = Storage::disk('local')->mimeType($vb->berkas);
 
+        $ext = strtolower(pathinfo($vb->berkas, PATHINFO_EXTENSION));
+        $filename = 'Berkas_Verifikasi_' . $vb->id . ($ext ? '.' . $ext : '');
+
         return response()->file($path, [
             'Content-Type' => $mimeType,
-            'Content-Disposition' => 'inline; filename="Berkas_Verifikasi_' . $vb->id . '"',
+            'Content-Disposition' => HeaderUtils::makeDisposition(
+                ResponseHeaderBag::DISPOSITION_INLINE,
+                $filename,
+                $this->asciiFallbackFilename($filename),
+            ),
         ]);
     }
 
