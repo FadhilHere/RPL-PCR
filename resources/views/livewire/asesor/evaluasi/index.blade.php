@@ -19,8 +19,25 @@ use App\Models\PermohonanRpl;
 new #[Layout('components.layouts.asesor')] class extends Component {
     use WithFileUploads;
 
-    public PermohonanRpl $permohonan;
+    public int $permohonanId;
     public $berkasBA = null;
+
+    #[\Livewire\Attributes\Computed]
+    public function permohonan(): PermohonanRpl
+    {
+        return PermohonanRpl::with([
+            'peserta.user',
+            'peserta.dokumenBukti',
+            'programStudi',
+            'rplMataKuliah.mataKuliah.cpmk',
+            'rplMataKuliah.mataKuliah.pertanyaan',
+            'rplMataKuliah.asesmenMandiri.pertanyaan',
+            'rplMataKuliah.asesmenMandiri.evaluasiVatm',
+            'rplMataKuliah.asesmenMandiri.nilaiAsesor',
+            'rplMataKuliah.matkulLampau',
+            'verifikasiBersama',
+        ])->findOrFail($this->permohonanId);
+    }
 
     // mkStatus[rpl_mk_id] = status string
     public array $mkStatus = [];
@@ -40,27 +57,14 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     public function mount(PermohonanRpl $permohonan): void
     {
         $asesorId   = auth()->user()->asesor?->id;
-        // Validasi: Apakah Asesor ini telah di-assign ke permohonan ini?
         $isAssigned = $asesorId && $permohonan->asesor()->where('asesor_id', $asesorId)->exists();
 
         if (! $isAssigned) {
             abort(403, 'Anda tidak ditugaskan/diassign ke permohonan ini.');
         }
 
-        // Hanya load relasi yang dibutuhkan untuk halaman evaluasi utama.
-        // Relasi profil peserta (riwayatPendidikan, pelatihan, dll) di-load on-demand via loadProfilPeserta().
-        $this->permohonan = $permohonan->load([
-            'peserta.user',
-            'peserta.dokumenBukti',
-            'programStudi',
-            'rplMataKuliah.mataKuliah.cpmk',
-            'rplMataKuliah.mataKuliah.pertanyaan',
-            'rplMataKuliah.asesmenMandiri.pertanyaan',
-            'rplMataKuliah.asesmenMandiri.evaluasiVatm',
-            'rplMataKuliah.asesmenMandiri.nilaiAsesor',
-            'rplMataKuliah.matkulLampau',
-            'verifikasiBersama',
-        ]);
+        // model di-fetch fresh via computed property permohonan()
+        $this->permohonanId = $permohonan->id;
 
         foreach ($this->permohonan->rplMataKuliah as $rplMk) {
             $this->mkStatus[$rplMk->id]  = $rplMk->status?->value ?? StatusRplMataKuliahEnum::Menunggu->value;
@@ -151,8 +155,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
         $action->execute($this->permohonan, $this->berkasBA, $catatanHasil);
 
-        $this->permohonan->load('verifikasiBersama');
-        $this->permohonan->refresh();
+        unset($this->permohonan); // invalidate computed cache — fresh query pada render berikutnya
         $this->berkasBA = null;
         $this->dispatch('notify-saved');
     }
@@ -161,7 +164,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     {
         $ml = \App\Models\MatkulLampau::query()
             ->whereKey($matkulLampauId)
-            ->whereIn('rpl_mata_kuliah_id', $this->permohonan->rplMataKuliah()->select('id'))
+            ->whereIn('rpl_mata_kuliah_id', \App\Models\RplMataKuliah::query()->where('permohonan_rpl_id', $this->permohonanId)->select('id'))
             ->firstOrFail();
 
         $ml->update([
@@ -203,11 +206,11 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         $nilaiEnum = NilaiHurufEnum::from($nilai);
         $rplMk = \App\Models\RplMataKuliah::query()
             ->with(['mataKuliah', 'matkulLampau'])
-            ->where('permohonan_rpl_id', $this->permohonan->id)
+            ->where('permohonan_rpl_id', $this->permohonanId)
             ->findOrFail($rplMkId);
 
         $this->simpanPenilaianTransferMk($rplMk, $nilaiEnum, $sanitizer);
-        $this->permohonan->refresh();
+        unset($this->permohonan);
         $this->dispatch('notify-saved');
     }
 
@@ -219,7 +222,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
         $asm = \App\Models\AsesmenMandiri::query()
             ->whereKey($asesmenMandiriId)
-            ->whereIn('rpl_mata_kuliah_id', $this->permohonan->rplMataKuliah()->select('id'))
+            ->whereIn('rpl_mata_kuliah_id', \App\Models\RplMataKuliah::query()->where('permohonan_rpl_id', $this->permohonanId)->select('id'))
             ->firstOrFail();
 
         NilaiAsesor::updateOrCreate(
@@ -235,7 +238,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
         $rplMk = \App\Models\RplMataKuliah::query()
             ->with('asesmenMandiri.nilaiAsesor')
-            ->where('permohonan_rpl_id', $this->permohonan->id)
+            ->where('permohonan_rpl_id', $this->permohonanId)
             ->find($asm->rpl_mata_kuliah_id);
 
         if ($rplMk) {
@@ -257,9 +260,9 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                 $this->mkStatus[$rplMk->id] = $status->value;
                 $this->dispatch('mk-status-updated', mkId: $rplMk->id, badge: $status->badgeClass(), label: $status->label());
             }
-
-            $this->permohonan->refresh();
         }
+
+        unset($this->permohonan); // selalu clear cache, tidak hanya saat $rplMk ada
     }
 
     #[\Livewire\Attributes\Renderless]
@@ -269,7 +272,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
         $asm = \App\Models\AsesmenMandiri::query()
             ->whereKey($asesmenMandiriId)
-            ->whereIn('rpl_mata_kuliah_id', $this->permohonan->rplMataKuliah()->select('id'))
+            ->whereIn('rpl_mata_kuliah_id', \App\Models\RplMataKuliah::query()->where('permohonan_rpl_id', $this->permohonanId)->select('id'))
             ->firstOrFail();
 
         EvaluasiVatm::updateOrCreate(
@@ -280,9 +283,6 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                 'dievaluasi_pada' => now(),
             ]
         );
-
-        // Muat ulang relasi evaluasiVatm agar template Livewire mendeteksi perubahan
-        $this->permohonan->load('rplMataKuliah.asesmenMandiri.evaluasiVatm');
     }
 
     public function finalisasi(FinalisasiPermohonanAction $action, SanitizeCatatanAsesorAction $sanitizer): void
@@ -318,7 +318,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
             return;
         }
 
-        $this->permohonan->refresh();
+        unset($this->permohonan);
 
         try {
             $action->execute($this->permohonan);
@@ -347,7 +347,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         $action->execute($this->permohonan, $rplMkId, $status, $this->mkCatatan[$rplMkId] ?? null);
 
         $this->dispatch('mk-status-updated', mkId: $rplMkId, badge: $status->badgeClass(), label: $status->label());
-        $this->permohonan->refresh();
+        unset($this->permohonan);
         $this->dispatch('notify-saved');
     }
 
@@ -355,6 +355,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     {
         return [
             'nilaiHurufOptions' => \App\Enums\NilaiHurufEnum::cases(),
+            'permohonan'        => $this->permohonan,
         ];
     }
 }; ?>
