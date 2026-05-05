@@ -94,7 +94,7 @@
                             clearTimeout(this.timer);
                             this.timer = setTimeout(() => {
                                 $wire.saveNilaiAsesor({{ $asm->id }}, n);
-                            }, 500);
+                            }, 1000);
                         }
                     }">
                         <span class="text-[11px] font-medium text-[#5a6a75] mr-1 shrink-0">Asesor:</span>
