@@ -89,12 +89,33 @@
                     <div class="flex items-center gap-1" x-data="{
                         nilai: $wire.nilaiAsesor[{{ $asm->id }}],
                         timer: null,
+                        pending: false,
+                        queued: null,
+                        lastSent: $wire.nilaiAsesor[{{ $asm->id }}] ?? null,
                         updateNilai(n) {
                             this.nilai = n;
+                            this.$dispatch('nilai-asesor-updated', {
+                                mkId: {{ $rplMk->id }},
+                                asmId: {{ $asm->id }},
+                                nilai: n
+                            });
+                            this.queued = n;
                             clearTimeout(this.timer);
-                            this.timer = setTimeout(() => {
-                                $wire.saveNilaiAsesor({{ $asm->id }}, n);
-                            }, 1000);
+                            this.timer = setTimeout(() => this.flushQueue(), 1000);
+                        },
+                        flushQueue() {
+                            if (this.pending) return;
+                            if (this.queued === null || this.queued === this.lastSent) return;
+                            this.pending = true;
+                            const val = this.queued;
+                            this.queued = null;
+                            $wire.saveNilaiAsesor({{ $asm->id }}, val).then(() => {
+                                this.lastSent = val;
+                                this.pending = false;
+                                if (this.queued !== null && this.queued !== this.lastSent) {
+                                    this.flushQueue();
+                                }
+                            });
                         }
                     }">
                         <span class="text-[11px] font-medium text-[#5a6a75] mr-1 shrink-0">Asesor:</span>
@@ -209,6 +230,7 @@
                             @foreach ($nilaiHurufOptions as $opt)
                             <button type="button"
                                     wire:click="$set('nilaiTransfer.{{ $rplMk->id }}', '{{ $opt->value }}')"
+                                    @click="$dispatch('mk-status-predicted', { mkId: {{ $rplMk->id }}, status: '{{ $opt->diakui() ? \App\Enums\StatusRplMataKuliahEnum::Diakui->value : \App\Enums\StatusRplMataKuliahEnum::TidakDiakui->value }}', sks: {{ $mk->sks ?? 0 }} })"
                                     class="w-12 h-12 rounded-xl text-[14px] font-bold border-2 transition-all
                                            {{ ($nilaiTransfer[$rplMk->id] ?? '') === $opt->value
                                                ? 'bg-primary border-primary text-white shadow-md shadow-primary/20'
@@ -282,21 +304,62 @@
             @if (! ($rplMk->has_mk_sejenis && $rplMk->matkulLampau->isNotEmpty()))
                 {{-- Hanya tampilkan ringkasan rata-rata VATM jika bukan hybrid MK Lampau --}}
                 @php
-                    $hitungAction = app(\App\Actions\Asesor\HitungKeputusanMkAction::class);
-                    $rataRata     = $hitungAction->rataRata($rplMk->load('asesmenMandiri.nilaiAsesor'));
-                    $rekomendasi  = $rataRata !== null ? $hitungAction->execute($rplMk) : null;
+                    $asmNilaiMap = $rplMk->asesmenMandiri
+                        ->mapWithKeys(fn($asm) => [$asm->id => ($this->nilaiAsesor[$asm->id] ?? 0) ?: null]);
+                    $labelDiakui = \App\Enums\StatusRplMataKuliahEnum::Diakui->label();
+                    $labelTidak  = \App\Enums\StatusRplMataKuliahEnum::TidakDiakui->label();
                 @endphp
                 <div class="mt-3 mb-1 flex items-center gap-3 px-1"
-                     x-data="{ rate: {{ $rataRata !== null ? $rataRata : 'null' }}, rekLabel: '{{ $rekomendasi?->label() }}', diakui: {{ $rekomendasi === \App\Enums\StatusRplMataKuliahEnum::Diakui ? 'true' : 'false' }} }"
-                     @rata-rata-updated.window="if ($event.detail.mkId == {{ $rplMk->id }}) { rate = $event.detail.rataRata; rekLabel = $event.detail.rekomendasiLabel; diakui = $event.detail.isDiakui; }"
-                     x-show="rate !== null" x-cloak>
+                     wire:ignore
+                     x-data="{
+                        nilaiMap: @js($asmNilaiMap),
+                        labelDiakui: @js($labelDiakui),
+                        labelTidak: @js($labelTidak),
+                        init() {
+                            this.dispatchPrediksi();
+                        },
+                        rataRataRaw() {
+                            const vals = Object.values(this.nilaiMap);
+                            if (vals.length === 0) return null;
+                            if (vals.some((v) => v === null || v === 0)) return null;
+                            return vals.reduce((sum, v) => sum + Number(v), 0) / vals.length;
+                        },
+                        rataRataDisplay() {
+                            const raw = this.rataRataRaw();
+                            return raw === null ? null : Math.round(raw * 100) / 100;
+                        },
+                        diakui() {
+                            const raw = this.rataRataRaw();
+                            return raw !== null && raw >= 3;
+                        },
+                        rekomendasiLabel() {
+                            const raw = this.rataRataRaw();
+                            if (raw === null) return '';
+                            return raw >= 3 ? this.labelDiakui : this.labelTidak;
+                        },
+                        dispatchPrediksi() {
+                            const raw = this.rataRataRaw();
+                            const status = raw === null
+                                ? '{{ \App\Enums\StatusRplMataKuliahEnum::Menunggu->value }}'
+                                : (raw >= 3
+                                    ? '{{ \App\Enums\StatusRplMataKuliahEnum::Diakui->value }}'
+                                    : '{{ \App\Enums\StatusRplMataKuliahEnum::TidakDiakui->value }}');
+                            this.$dispatch('mk-status-predicted', {
+                                mkId: {{ $rplMk->id }},
+                                status: status,
+                                sks: {{ $mk->sks ?? 0 }}
+                            });
+                        }
+                     }"
+                     @nilai-asesor-updated.window="if ($event.detail.mkId === {{ $rplMk->id }}) { nilaiMap[$event.detail.asmId] = $event.detail.nilai; dispatchPrediksi(); }"
+                     x-show="rataRataRaw() !== null" x-cloak>
                     <span class="text-[11px] text-[#8a9ba8]">
                         Rata-rata nilai asesor:
-                        <span class="font-semibold text-[#1a2a35]" x-text="rate"></span> / 5
+                        <span class="font-semibold text-[#1a2a35]" x-text="rataRataDisplay()"></span> / 5
                     </span>
                     <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                          :class="diakui ? 'bg-[#E6F4EA] text-[#1e7e3e]' : 'bg-[#FCE8E6] text-[#c62828]'">
-                        Rekomendasi: <span x-text="rekLabel"></span>
+                          :class="diakui() ? 'bg-[#E6F4EA] text-[#1e7e3e]' : 'bg-[#FCE8E6] text-[#c62828]'">
+                        Rekomendasi: <span x-text="rekomendasiLabel()"></span>
                     </span>
                     <span class="text-[10px] text-[#b0bec5]">— (Status final dapat di-override di bawah jika perlu)</span>
                 </div>

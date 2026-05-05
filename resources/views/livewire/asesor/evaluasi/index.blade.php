@@ -214,6 +214,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         $this->dispatch('notify-saved');
     }
 
+    #[\Livewire\Attributes\Renderless]
     public function saveNilaiAsesor(int $asesmenMandiriId, int $nilai): void
     {
         abort_if($nilai < 1 || $nilai > 5, 422);
@@ -235,34 +236,6 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         );
 
         $this->nilaiAsesor[$asm->id] = $nilai;
-
-        $rplMk = \App\Models\RplMataKuliah::query()
-            ->with('asesmenMandiri.nilaiAsesor')
-            ->where('permohonan_rpl_id', $this->permohonanId)
-            ->find($asm->rpl_mata_kuliah_id);
-
-        if ($rplMk) {
-            $hitungAction = app(HitungKeputusanMkAction::class);
-            $rataRata = $hitungAction->rataRata($rplMk);
-            $rekomendasi = $rataRata !== null ? $hitungAction->execute($rplMk) : null;
-
-            $this->dispatch('rata-rata-updated',
-                mkId: $rplMk->id,
-                rataRata: $rataRata,
-                rekomendasiLabel: $rekomendasi?->label(),
-                isDiakui: $rekomendasi === \App\Enums\StatusRplMataKuliahEnum::Diakui
-            );
-
-            // Auto-set status MK jika semua sub-CPMK sudah dinilai
-            if ($rplMk->asesmenMandiri->isNotEmpty() && $rplMk->asesmenMandiri->every(fn($a) => $a->nilaiAsesor !== null)) {
-                $status = $rekomendasi;
-                $rplMk->update(['status' => $status]);
-                $this->mkStatus[$rplMk->id] = $status->value;
-                $this->dispatch('mk-status-updated', mkId: $rplMk->id, badge: $status->badgeClass(), label: $status->label());
-            }
-        }
-
-        unset($this->permohonan); // selalu clear cache, tidak hanya saat $rplMk ada
     }
 
     #[\Livewire\Attributes\Renderless]
@@ -288,32 +261,41 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     public function finalisasi(FinalisasiPermohonanAction $action, SanitizeCatatanAsesorAction $sanitizer): void
     {
         $rplMataKuliah = $this->permohonan->rplMataKuliah()
-            ->with(['mataKuliah', 'matkulLampau'])
+            ->with(['mataKuliah', 'matkulLampau', 'asesmenMandiri.nilaiAsesor'])
             ->get();
 
         $belumDinilai = [];
+        $hitungAction = app(HitungKeputusanMkAction::class);
 
         foreach ($rplMataKuliah as $rplMk) {
-            if (! ($rplMk->has_mk_sejenis && $rplMk->matkulLampau->isNotEmpty())) {
+            if ($rplMk->has_mk_sejenis && $rplMk->matkulLampau->isNotEmpty()) {
+                $nilaiTerpilih = (string) ($this->nilaiTransfer[$rplMk->id] ?? $rplMk->nilai_transfer ?? '');
+                $nilaiEnum     = $nilaiTerpilih !== '' ? NilaiHurufEnum::tryFrom($nilaiTerpilih) : null;
+
+                if (! $nilaiEnum) {
+                    $belumDinilai[] = $rplMk->mataKuliah->kode ?? ('MK #' . $rplMk->id);
+                    continue;
+                }
+
+                $this->nilaiTransfer[$rplMk->id] = $nilaiEnum->value;
+                $this->simpanPenilaianTransferMk($rplMk, $nilaiEnum, $sanitizer);
                 continue;
             }
 
-            $nilaiTerpilih = (string) ($this->nilaiTransfer[$rplMk->id] ?? $rplMk->nilai_transfer ?? '');
-            $nilaiEnum     = $nilaiTerpilih !== '' ? NilaiHurufEnum::tryFrom($nilaiTerpilih) : null;
-
-            if (! $nilaiEnum) {
+            if ($rplMk->asesmenMandiri->isEmpty() || ! $rplMk->asesmenMandiri->every(fn($a) => $a->nilaiAsesor !== null)) {
                 $belumDinilai[] = $rplMk->mataKuliah->kode ?? ('MK #' . $rplMk->id);
                 continue;
             }
 
-            $this->nilaiTransfer[$rplMk->id] = $nilaiEnum->value;
-            $this->simpanPenilaianTransferMk($rplMk, $nilaiEnum, $sanitizer);
+            $status = $hitungAction->execute($rplMk);
+            $rplMk->update(['status' => $status]);
+            $this->mkStatus[$rplMk->id] = $status->value;
         }
 
         if ($belumDinilai !== []) {
             $this->dispatch(
                 'notify-error',
-                message: 'Masih ada mata kuliah transfer yang belum dinilai: ' . implode(', ', $belumDinilai) . '.'
+                message: 'Masih ada mata kuliah yang belum dinilai: ' . implode(', ', $belumDinilai) . '.'
             );
             return;
         }
@@ -662,8 +644,9 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         @php
             $nilaiTransferState = $this->nilaiTransfer ?? [];
             $mkStatusState      = $this->mkStatus ?? [];
+            $nilaiAsesorState   = $this->nilaiAsesor ?? [];
 
-            $statusPrediksiMk = $permohonan->rplMataKuliah->mapWithKeys(function ($mk) use ($nilaiTransferState, $mkStatusState) {
+            $statusPrediksiMk = $permohonan->rplMataKuliah->mapWithKeys(function ($mk) use ($nilaiTransferState, $mkStatusState, $nilaiAsesorState) {
                 if ($mk->has_mk_sejenis && $mk->matkulLampau->isNotEmpty()) {
                     $nilai     = (string) ($nilaiTransferState[$mk->id] ?? $mk->nilai_transfer ?? '');
                     $nilaiEnum = $nilai !== '' ? NilaiHurufEnum::tryFrom($nilai) : null;
@@ -678,7 +661,22 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                 }
 
                 $statusValue = $mkStatusState[$mk->id] ?? $mk->status?->value ?? StatusRplMataKuliahEnum::Menunggu->value;
-                return [$mk->id => StatusRplMataKuliahEnum::from($statusValue)];
+                if ($statusValue !== StatusRplMataKuliahEnum::Menunggu->value) {
+                    return [$mk->id => StatusRplMataKuliahEnum::from($statusValue)];
+                }
+
+                $nilaiList = $mk->asesmenMandiri
+                    ->map(fn($asm) => $nilaiAsesorState[$asm->id] ?? null)
+                    ->filter(fn($v) => $v !== null && $v !== 0);
+
+                if ($mk->asesmenMandiri->isEmpty() || $nilaiList->count() < $mk->asesmenMandiri->count()) {
+                    return [$mk->id => StatusRplMataKuliahEnum::Menunggu];
+                }
+
+                $rataRata = $nilaiList->average();
+                return [$mk->id => $rataRata >= 3
+                    ? StatusRplMataKuliahEnum::Diakui
+                    : StatusRplMataKuliahEnum::TidakDiakui];
             });
 
             $sksDiakuiPreview = $permohonan->rplMataKuliah->sum(fn ($mk) =>
@@ -690,9 +688,34 @@ new #[Layout('components.layouts.asesor')] class extends Component {
             $persenSks       = $totalSksProdi > 0 ? round($sksDiakuiPreview / $totalSksProdi * 100) : 0;
             $akanDisetujui   = $totalSksProdi > 0 && $sksDiakuiPreview >= ($totalSksProdi * 0.5);
             $masihMenunggu   = $statusPrediksiMk->contains(fn ($st) => $st === StatusRplMataKuliahEnum::Menunggu);
+            $mkStatusPrediksi = $statusPrediksiMk->mapWithKeys(fn($st, $id) => [$id => $st->value])->toArray();
+            $mkSksMap         = $permohonan->rplMataKuliah->mapWithKeys(fn($mk) => [$mk->id => $mk->mataKuliah->sks ?? 0])->toArray();
         @endphp
 
-        <div x-data="{ openFinal: false }" class="mt-6 mb-4">
+        <div x-data="{
+                openFinal: false,
+                mkStatus: @js($mkStatusPrediksi),
+                mkSks: @js($mkSksMap),
+                totalSks: {{ $totalSksProdi }},
+                masihMenunggu() {
+                    return Object.values(this.mkStatus).some((st) => st === '{{ StatusRplMataKuliahEnum::Menunggu->value }}');
+                },
+                sksDiakui() {
+                    return Object.entries(this.mkStatus).reduce((sum, [id, st]) => {
+                        return st === '{{ StatusRplMataKuliahEnum::Diakui->value }}'
+                            ? sum + (this.mkSks[id] ?? 0)
+                            : sum;
+                    }, 0);
+                },
+                persenSks() {
+                    return this.totalSks > 0 ? Math.round(this.sksDiakui() / this.totalSks * 100) : 0;
+                },
+                akanDisetujui() {
+                    return this.totalSks > 0 && this.sksDiakui() >= (this.totalSks * 0.5);
+                }
+            }"
+            @mk-status-predicted.window="if ($event.detail.mkId in mkStatus) { mkStatus[$event.detail.mkId] = $event.detail.status; }"
+            class="mt-6 mb-4">
             <div class="bg-white rounded-xl border border-[#E5E8EC] p-5 flex items-center justify-between gap-4">
                 <div>
                     <div class="text-[14px] font-semibold text-[#1a2a35] mb-1">Selesaikan Penilaian</div>
@@ -703,7 +726,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                 </div>
                 <button type="button"
                         @click="openFinal = true"
-                        @if($masihMenunggu) disabled @endif
+                        :disabled="masihMenunggu()"
                         class="shrink-0 inline-flex items-center gap-2 h-[42px] px-5 bg-primary hover:bg-[#005f78] text-white text-[13px] font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 6 9 17 4 12"/>
@@ -728,22 +751,30 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                         <div class="bg-[#F4F6F8] rounded-lg p-4">
                             <div class="text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px] mb-1">SKS Diakui</div>
                             <div class="text-[18px] font-semibold text-[#1a2a35]">
-                                {{ $sksDiakuiPreview }} / {{ $totalSksProdi }} SKS
-                                <span class="text-[12px] font-medium text-[#8a9ba8]">({{ $persenSks }}%)</span>
+                                <span x-text="sksDiakui()"></span> / {{ $totalSksProdi }} SKS
+                                <span class="text-[12px] font-medium text-[#8a9ba8]">(<span x-text="persenSks()"></span>%)</span>
                             </div>
                         </div>
                         <div class="text-[12px] leading-relaxed">
-                            @if ($masihMenunggu)
-                                <span class="text-[#c62828] font-semibold">Masih ada mata kuliah yang belum dinilai.</span>
-                                Lengkapi semua penilaian terlebih dahulu sebelum memfinalisasi.
-                            @elseif ($akanDisetujui)
-                                Berdasarkan rule 50% SKS, permohonan akan
-                                <span class="text-[#1e7e3e] font-semibold">DISETUJUI</span>.
-                            @else
-                                Berdasarkan rule 50% SKS, permohonan akan
-                                <span class="text-[#c62828] font-semibold">DITOLAK</span>
-                                karena SKS yang diakui di bawah 50%.
-                            @endif
+                            <template x-if="masihMenunggu()">
+                                <div>
+                                    <span class="text-[#c62828] font-semibold">Masih ada mata kuliah yang belum dinilai.</span>
+                                    Lengkapi semua penilaian terlebih dahulu sebelum memfinalisasi.
+                                </div>
+                            </template>
+                            <template x-if="!masihMenunggu() && akanDisetujui()">
+                                <div>
+                                    Berdasarkan rule 50% SKS, permohonan akan
+                                    <span class="text-[#1e7e3e] font-semibold">DISETUJUI</span>.
+                                </div>
+                            </template>
+                            <template x-if="!masihMenunggu() && !akanDisetujui()">
+                                <div>
+                                    Berdasarkan rule 50% SKS, permohonan akan
+                                    <span class="text-[#c62828] font-semibold">DITOLAK</span>
+                                    karena SKS yang diakui di bawah 50%.
+                                </div>
+                            </template>
                         </div>
                     </div>
                     <div class="px-6 py-4 border-t border-[#F0F2F5] flex items-center justify-end gap-2">
@@ -753,7 +784,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                         </button>
                         <button type="button"
                                 @click="$wire.finalisasi(); openFinal = false"
-                                @if($masihMenunggu) disabled @endif
+                                :disabled="masihMenunggu()"
                                 class="h-[38px] px-4 bg-primary hover:bg-[#005f78] text-white text-[13px] font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             Ya, Selesai
                         </button>
