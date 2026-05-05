@@ -33,6 +33,10 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     // catatanLampau[matkul_lampau_id] = string
     public array $catatanLampau = [];
 
+    // Profil peserta — di-load on-demand saat tombol "Profil Peserta" diklik
+    public bool $profilPesertaLoaded = false;
+    public array $profilPeserta = [];
+
     public function mount(PermohonanRpl $permohonan): void
     {
         $asesorId   = auth()->user()->asesor?->id;
@@ -43,14 +47,11 @@ new #[Layout('components.layouts.asesor')] class extends Component {
             abort(403, 'Anda tidak ditugaskan/diassign ke permohonan ini.');
         }
 
+        // Hanya load relasi yang dibutuhkan untuk halaman evaluasi utama.
+        // Relasi profil peserta (riwayatPendidikan, pelatihan, dll) di-load on-demand via loadProfilPeserta().
         $this->permohonan = $permohonan->load([
             'peserta.user',
             'peserta.dokumenBukti',
-            'peserta.riwayatPendidikan',
-            'peserta.pelatihanProfesional',
-            'peserta.konferensiSeminar',
-            'peserta.penghargaan',
-            'peserta.organisasiProfesi',
             'programStudi',
             'rplMataKuliah.mataKuliah.cpmk',
             'rplMataKuliah.mataKuliah.pertanyaan',
@@ -76,6 +77,71 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         }
     }
 
+
+    public function loadProfilPeserta(): void
+    {
+        if ($this->profilPesertaLoaded) {
+            return;
+        }
+
+        $peserta = $this->permohonan->peserta->load([
+            'riwayatPendidikan',
+            'pelatihanProfesional',
+            'konferensiSeminar',
+            'penghargaan',
+            'organisasiProfesi',
+        ]);
+
+        $this->profilPeserta = [
+            'biodata' => [
+                'nama'             => $peserta->user->nama ?? '—',
+                'email'            => $peserta->user->email ?? '—',
+                'nik'              => $peserta->nik ?? '—',
+                'telepon'          => $peserta->telepon ?? '—',
+                'telepon_faks'     => $peserta->telepon_faks ?? '—',
+                'jenis_kelamin'    => $peserta->jenis_kelamin === 'L' ? 'Laki-laki' : ($peserta->jenis_kelamin === 'P' ? 'Perempuan' : '—'),
+                'tempat_lahir'     => $peserta->tempat_lahir ?? '—',
+                'tanggal_lahir'    => $peserta->tanggal_lahir?->format('d M Y') ?? '—',
+                'agama'            => $peserta->agama ?? '—',
+                'golongan_pangkat' => $peserta->golongan_pangkat ?? '—',
+                'instansi'         => $peserta->instansi ?? '—',
+                'pekerjaan'        => $peserta->pekerjaan ?? '—',
+                'alamat'           => $peserta->alamat ?? null,
+                'kota'             => $peserta->kota ?? null,
+                'provinsi'         => $peserta->provinsi ?? null,
+                'kode_pos'         => $peserta->kode_pos ?? null,
+            ],
+            'pendidikan'  => $peserta->riwayatPendidikan->map(fn($r) => [
+                'nama_sekolah' => $r->nama_sekolah,
+                'jurusan'      => $r->jurusan ?? '—',
+                'tahun_lulus'  => $r->tahun_lulus ?? '—',
+            ])->toArray(),
+            'pelatihan'   => $peserta->pelatihanProfesional->map(fn($r) => [
+                'jenis_pelatihan' => $r->jenis_pelatihan,
+                'penyelenggara'   => $r->penyelenggara,
+                'jangka_waktu'    => $r->jangka_waktu ?? '—',
+                'tahun'           => $r->tahun,
+            ])->toArray(),
+            'konferensi'  => $peserta->konferensiSeminar->map(fn($r) => [
+                'judul_kegiatan' => $r->judul_kegiatan,
+                'penyelenggara'  => $r->penyelenggara,
+                'peran'          => $r->peran ?? '—',
+                'tahun'          => $r->tahun,
+            ])->toArray(),
+            'penghargaan' => $peserta->penghargaan->map(fn($r) => [
+                'bentuk_penghargaan' => $r->bentuk_penghargaan,
+                'pemberi'            => $r->pemberi,
+                'tahun'              => $r->tahun,
+            ])->toArray(),
+            'organisasi'  => $peserta->organisasiProfesi->map(fn($r) => [
+                'nama_organisasi' => $r->nama_organisasi,
+                'jabatan'         => $r->jabatan ?? '—',
+                'tahun'           => $r->tahun,
+            ])->toArray(),
+        ];
+
+        $this->profilPesertaLoaded = true;
+    }
 
     public function selesaikanVerifikasi(string $catatanHasil = '', SelesaikanVerifikasiAction $action): void
     {
@@ -344,7 +410,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                 </svg>
                 Download Hasil (Word)
             </a>
-            <button @click="profilOpen = true"
+            <button @click="if (!$wire.profilPesertaLoaded) { $wire.loadProfilPeserta(); } profilOpen = true;"
                     class="flex items-center gap-1.5 h-[34px] px-3.5 border border-[#D0D5DD] text-[#5a6a75] hover:border-primary hover:text-primary hover:bg-[#E8F4F8] rounded-lg text-[12px] font-medium transition-colors">
                 <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
@@ -354,7 +420,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         </div>
     </div>
 
-    {{-- Modal Profil Peserta (read-only) --}}
+    {{-- Modal Profil Peserta (read-only, data di-load on-demand via loadProfilPeserta()) --}}
     <div x-show="profilOpen" x-cloak
          class="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 overflow-y-auto"
          x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
@@ -375,6 +441,16 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                 </button>
             </div>
 
+            @if (! $profilPesertaLoaded)
+            {{-- Loading state — muncul selama data belum selesai di-fetch --}}
+            <div class="p-10 flex items-center justify-center gap-2.5">
+                <svg class="animate-spin h-5 w-5 text-primary" viewBox="0 0 24 24" fill="none">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+                <span class="text-[12px] text-[#8a9ba8]">Memuat data profil...</span>
+            </div>
+            @else
             <div class="p-6 space-y-6" x-data="{ tab: 'biodata' }">
 
                 {{-- Tab bar --}}
@@ -394,40 +470,42 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                 </div>
 
                 {{-- Biodata --}}
-                <div x-show="tab === 'biodata'" x-cloak>
-                    @php $p = $permohonan->peserta; @endphp
+                <template x-if="tab === 'biodata'">
+                <div>
                     <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-[12px]">
                         @foreach ([
-                            'Nama'             => $p->user->nama ?? '—',
-                            'Email'            => $p->user->email ?? '—',
-                            'NIP / NIK'        => $p->nik ?? '—',
-                            'No. HP / WA'      => $p->telepon ?? '—',
-                            'Telepon / Faks'   => $p->telepon_faks ?? '—',
-                            'Jenis Kelamin'    => $p->jenis_kelamin === 'L' ? 'Laki-laki' : ($p->jenis_kelamin === 'P' ? 'Perempuan' : '—'),
-                            'Tempat Lahir'     => $p->tempat_lahir ?? '—',
-                            'Tanggal Lahir'    => $p->tanggal_lahir?->format('d M Y') ?? '—',
-                            'Agama'            => $p->agama ?? '—',
-                            'Golongan/Pangkat' => $p->golongan_pangkat ?? '—',
-                            'Instansi'         => $p->instansi ?? '—',
-                            'Pekerjaan'        => $p->pekerjaan ?? '—',
+                            'Nama'             => $profilPeserta['biodata']['nama'],
+                            'Email'            => $profilPeserta['biodata']['email'],
+                            'NIP / NIK'        => $profilPeserta['biodata']['nik'],
+                            'No. HP / WA'      => $profilPeserta['biodata']['telepon'],
+                            'Telepon / Faks'   => $profilPeserta['biodata']['telepon_faks'],
+                            'Jenis Kelamin'    => $profilPeserta['biodata']['jenis_kelamin'],
+                            'Tempat Lahir'     => $profilPeserta['biodata']['tempat_lahir'],
+                            'Tanggal Lahir'    => $profilPeserta['biodata']['tanggal_lahir'],
+                            'Agama'            => $profilPeserta['biodata']['agama'],
+                            'Golongan/Pangkat' => $profilPeserta['biodata']['golongan_pangkat'],
+                            'Instansi'         => $profilPeserta['biodata']['instansi'],
+                            'Pekerjaan'        => $profilPeserta['biodata']['pekerjaan'],
                         ] as $lbl => $val)
                         <div class="flex flex-col gap-0.5">
                             <div class="text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">{{ $lbl }}</div>
                             <div class="text-[#1a2a35]">{{ $val }}</div>
                         </div>
                         @endforeach
-                        @if ($p->alamat)
+                        @if ($profilPeserta['biodata']['alamat'])
                         <div class="col-span-2 flex flex-col gap-0.5">
                             <div class="text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Alamat</div>
-                            <div class="text-[#1a2a35]">{{ $p->alamat }}{{ $p->kota ? ', ' . $p->kota : '' }}{{ $p->provinsi ? ', ' . $p->provinsi : '' }}{{ $p->kode_pos ? ' ' . $p->kode_pos : '' }}</div>
+                            <div class="text-[#1a2a35]">{{ $profilPeserta['biodata']['alamat'] }}{{ $profilPeserta['biodata']['kota'] ? ', ' . $profilPeserta['biodata']['kota'] : '' }}{{ $profilPeserta['biodata']['provinsi'] ? ', ' . $profilPeserta['biodata']['provinsi'] : '' }}{{ $profilPeserta['biodata']['kode_pos'] ? ' ' . $profilPeserta['biodata']['kode_pos'] : '' }}</div>
                         </div>
                         @endif
                     </div>
                 </div>
+                </template>
 
                 {{-- Riwayat Pendidikan --}}
-                <div x-show="tab === 'pendidikan'" x-cloak>
-                    @if ($permohonan->peserta->riwayatPendidikan->isEmpty())
+                <template x-if="tab === 'pendidikan'">
+                <div>
+                    @if (empty($profilPeserta['pendidikan']))
                     <div class="text-center text-[12px] text-[#8a9ba8] py-6">Belum ada data riwayat pendidikan.</div>
                     @else
                     <table class="w-full text-[12px]">
@@ -437,21 +515,23 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                             <th class="text-left font-semibold text-[#8a9ba8] px-3 py-2">Tahun Lulus</th>
                         </tr></thead>
                         <tbody>
-                            @foreach ($permohonan->peserta->riwayatPendidikan as $row)
+                            @foreach ($profilPeserta['pendidikan'] as $row)
                             <tr class="border-b border-[#F6F8FA] last:border-0">
-                                <td class="px-3 py-2.5 font-medium text-[#1a2a35]">{{ $row->nama_sekolah }}</td>
-                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row->jurusan ?? '—' }}</td>
-                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row->tahun_lulus ?? '—' }}</td>
+                                <td class="px-3 py-2.5 font-medium text-[#1a2a35]">{{ $row['nama_sekolah'] }}</td>
+                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row['jurusan'] }}</td>
+                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row['tahun_lulus'] }}</td>
                             </tr>
                             @endforeach
                         </tbody>
                     </table>
                     @endif
                 </div>
+                </template>
 
                 {{-- Pelatihan --}}
-                <div x-show="tab === 'pelatihan'" x-cloak>
-                    @if ($permohonan->peserta->pelatihanProfesional->isEmpty())
+                <template x-if="tab === 'pelatihan'">
+                <div>
+                    @if (empty($profilPeserta['pelatihan']))
                     <div class="text-center text-[12px] text-[#8a9ba8] py-6">Belum ada data pelatihan.</div>
                     @else
                     <table class="w-full text-[12px]">
@@ -462,22 +542,24 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                             <th class="text-left font-semibold text-[#8a9ba8] px-3 py-2">Tahun</th>
                         </tr></thead>
                         <tbody>
-                            @foreach ($permohonan->peserta->pelatihanProfesional as $row)
+                            @foreach ($profilPeserta['pelatihan'] as $row)
                             <tr class="border-b border-[#F6F8FA] last:border-0">
-                                <td class="px-3 py-2.5 font-medium text-[#1a2a35]">{{ $row->jenis_pelatihan }}</td>
-                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row->penyelenggara }}</td>
-                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row->jangka_waktu ?? '—' }}</td>
-                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row->tahun }}</td>
+                                <td class="px-3 py-2.5 font-medium text-[#1a2a35]">{{ $row['jenis_pelatihan'] }}</td>
+                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row['penyelenggara'] }}</td>
+                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row['jangka_waktu'] }}</td>
+                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row['tahun'] }}</td>
                             </tr>
                             @endforeach
                         </tbody>
                     </table>
                     @endif
                 </div>
+                </template>
 
                 {{-- Konferensi --}}
-                <div x-show="tab === 'konferensi'" x-cloak>
-                    @if ($permohonan->peserta->konferensiSeminar->isEmpty())
+                <template x-if="tab === 'konferensi'">
+                <div>
+                    @if (empty($profilPeserta['konferensi']))
                     <div class="text-center text-[12px] text-[#8a9ba8] py-6">Belum ada data konferensi / seminar.</div>
                     @else
                     <table class="w-full text-[12px]">
@@ -488,22 +570,24 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                             <th class="text-left font-semibold text-[#8a9ba8] px-3 py-2">Tahun</th>
                         </tr></thead>
                         <tbody>
-                            @foreach ($permohonan->peserta->konferensiSeminar as $row)
+                            @foreach ($profilPeserta['konferensi'] as $row)
                             <tr class="border-b border-[#F6F8FA] last:border-0">
-                                <td class="px-3 py-2.5 font-medium text-[#1a2a35]">{{ $row->judul_kegiatan }}</td>
-                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row->penyelenggara }}</td>
-                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row->peran ?? '—' }}</td>
-                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row->tahun }}</td>
+                                <td class="px-3 py-2.5 font-medium text-[#1a2a35]">{{ $row['judul_kegiatan'] }}</td>
+                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row['penyelenggara'] }}</td>
+                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row['peran'] }}</td>
+                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row['tahun'] }}</td>
                             </tr>
                             @endforeach
                         </tbody>
                     </table>
                     @endif
                 </div>
+                </template>
 
                 {{-- Penghargaan --}}
-                <div x-show="tab === 'penghargaan'" x-cloak>
-                    @if ($permohonan->peserta->penghargaan->isEmpty())
+                <template x-if="tab === 'penghargaan'">
+                <div>
+                    @if (empty($profilPeserta['penghargaan']))
                     <div class="text-center text-[12px] text-[#8a9ba8] py-6">Belum ada data penghargaan.</div>
                     @else
                     <table class="w-full text-[12px]">
@@ -513,21 +597,23 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                             <th class="text-left font-semibold text-[#8a9ba8] px-3 py-2">Tahun</th>
                         </tr></thead>
                         <tbody>
-                            @foreach ($permohonan->peserta->penghargaan as $row)
+                            @foreach ($profilPeserta['penghargaan'] as $row)
                             <tr class="border-b border-[#F6F8FA] last:border-0">
-                                <td class="px-3 py-2.5 font-medium text-[#1a2a35]">{{ $row->bentuk_penghargaan }}</td>
-                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row->pemberi }}</td>
-                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row->tahun }}</td>
+                                <td class="px-3 py-2.5 font-medium text-[#1a2a35]">{{ $row['bentuk_penghargaan'] }}</td>
+                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row['pemberi'] }}</td>
+                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row['tahun'] }}</td>
                             </tr>
                             @endforeach
                         </tbody>
                     </table>
                     @endif
                 </div>
+                </template>
 
                 {{-- Organisasi Profesi --}}
-                <div x-show="tab === 'organisasi'" x-cloak>
-                    @if ($permohonan->peserta->organisasiProfesi->isEmpty())
+                <template x-if="tab === 'organisasi'">
+                <div>
+                    @if (empty($profilPeserta['organisasi']))
                     <div class="text-center text-[12px] text-[#8a9ba8] py-6">Belum ada data organisasi profesi.</div>
                     @else
                     <table class="w-full text-[12px]">
@@ -537,19 +623,21 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                             <th class="text-left font-semibold text-[#8a9ba8] px-3 py-2">Tahun</th>
                         </tr></thead>
                         <tbody>
-                            @foreach ($permohonan->peserta->organisasiProfesi as $row)
+                            @foreach ($profilPeserta['organisasi'] as $row)
                             <tr class="border-b border-[#F6F8FA] last:border-0">
-                                <td class="px-3 py-2.5 font-medium text-[#1a2a35]">{{ $row->nama_organisasi }}</td>
-                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row->jabatan ?? '—' }}</td>
-                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row->tahun }}</td>
+                                <td class="px-3 py-2.5 font-medium text-[#1a2a35]">{{ $row['nama_organisasi'] }}</td>
+                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row['jabatan'] }}</td>
+                                <td class="px-3 py-2.5 text-[#5a6a75]">{{ $row['tahun'] }}</td>
                             </tr>
                             @endforeach
                         </tbody>
                     </table>
                     @endif
                 </div>
+                </template>
 
             </div>
+            @endif
         </div>
     </div>
     </div>

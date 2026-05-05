@@ -227,23 +227,39 @@
                             <label class="block text-[12px] font-semibold text-[#1a2a35] mb-2">
                                 Catatan Asesor untuk <span class="text-primary">{{ $ml->kode_mk }} — {{ $ml->nama_mk }}</span>
                             </label>
+                            {{-- Quill di-instantiate hanya saat asesor klik area edit (lazy init) --}}
                             <div wire:ignore
-                                 x-data="{ content: @entangle('catatanLampau.'.$ml->id), quill: null }"
-                                 x-init="
-                                    quill = new Quill($refs.quillLampau{{ $ml->id }}, {
-                                        theme: 'snow',
-                                        placeholder: 'Tulis catatan asesor terkait matkul PT Asal ini...',
-                                        modules: {
-                                            toolbar: [
-                                                ['bold', 'italic', 'underline'],
-                                                [{ 'list': 'ordered'}, { 'list': 'bullet' }]
-                                            ]
-                                        }
-                                    });
-                                    if (content) quill.root.innerHTML = content;
-                                    quill.on('text-change', () => { content = quill.root.innerHTML === '<p><br></p>' ? '' : quill.root.innerHTML; });
-                                 ">
-                                <div x-ref="quillLampau{{ $ml->id }}"></div>
+                                 x-data="{
+                                    initialized: false,
+                                    content: @entangle('catatanLampau.'.$ml->id),
+                                    quill: null,
+                                    initQuill() {
+                                        if (this.initialized) return;
+                                        this.initialized = true;
+                                        this.$nextTick(() => {
+                                            this.quill = new Quill(this.$refs.quillLampau{{ $ml->id }}, {
+                                                theme: 'snow',
+                                                placeholder: 'Tulis catatan asesor terkait matkul PT Asal ini...',
+                                                modules: { toolbar: [['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }]] }
+                                            });
+                                            if (this.content) this.quill.root.innerHTML = this.content;
+                                            this.quill.on('text-change', () => {
+                                                this.content = this.quill.root.innerHTML === '<p><br></p>' ? '' : this.quill.root.innerHTML;
+                                            });
+                                            this.quill.focus();
+                                        });
+                                    }
+                                 }">
+                                {{-- Preview mode: tampil saat belum diedit, klik untuk init Quill --}}
+                                <div x-show="!initialized"
+                                     @click="initQuill()"
+                                     class="border border-[#D8DDE2] rounded-lg p-3 min-h-[80px] cursor-text hover:border-primary transition-colors text-[12px] text-[#1a2a35] prose prose-sm max-w-none"
+                                     x-html="content || '<span class=\'text-[#8a9ba8]\'>Klik untuk menambahkan catatan...</span>'">
+                                </div>
+                                {{-- Editor mode: muncul setelah diklik --}}
+                                <div x-show="initialized">
+                                    <div x-ref="quillLampau{{ $ml->id }}"></div>
+                                </div>
                             </div>
                         </div>
                         @endforeach
@@ -299,23 +315,39 @@
                             :options="collect(\App\Enums\StatusRplMataKuliahEnum::cases())->mapWithKeys(fn($e) => [$e->value => $e->label()])->all()"
                         />
                     </div>
+                    {{-- Quill override catatan MK di-instantiate hanya saat asesor klik area edit (lazy init) --}}
                     <div class="flex-1" wire:ignore
-                         x-data="{ content: @entangle('mkCatatan.'.$rplMk->id), quill: null }"
-                         x-init="
-                            quill = new Quill($refs.quillContainerOverride, {
-                                theme: 'snow',
-                                placeholder: 'Tambahkan catatan khusus...',
-                                modules: {
-                                    toolbar: [
-                                        ['bold', 'italic', 'underline'],
-                                        [{ 'list': 'ordered'}, { 'list': 'bullet' }]
-                                    ]
-                                }
-                            });
-                            if (content) quill.root.innerHTML = content;
-                            quill.on('text-change', () => { content = quill.root.innerHTML === '<p><br></p>' ? '' : quill.root.innerHTML; });
-                         ">
-                        <div x-ref="quillContainerOverride"></div>
+                         x-data="{
+                            initialized: false,
+                            content: @entangle('mkCatatan.'.$rplMk->id),
+                            quill: null,
+                            initQuill() {
+                                if (this.initialized) return;
+                                this.initialized = true;
+                                this.$nextTick(() => {
+                                    this.quill = new Quill(this.$refs.quillContainerOverride, {
+                                        theme: 'snow',
+                                        placeholder: 'Tambahkan catatan khusus...',
+                                        modules: { toolbar: [['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }]] }
+                                    });
+                                    if (this.content) this.quill.root.innerHTML = this.content;
+                                    this.quill.on('text-change', () => {
+                                        this.content = this.quill.root.innerHTML === '<p><br></p>' ? '' : this.quill.root.innerHTML;
+                                    });
+                                    this.quill.focus();
+                                });
+                            }
+                         }">
+                        {{-- Preview mode: tampil saat belum diedit, klik untuk init Quill --}}
+                        <div x-show="!initialized"
+                             @click="initQuill()"
+                             class="border border-[#D8DDE2] rounded-lg p-3 min-h-[42px] cursor-text hover:border-primary transition-colors text-[12px] text-[#1a2a35] prose prose-sm max-w-none"
+                             x-html="content || '<span class=\'text-[#8a9ba8]\'>Klik untuk menambahkan catatan khusus...</span>'">
+                        </div>
+                        {{-- Editor mode: muncul setelah diklik --}}
+                        <div x-show="initialized">
+                            <div x-ref="quillContainerOverride"></div>
+                        </div>
                     </div>
                     <button wire:click="saveMkStatus({{ $rplMk->id }})"
                             class="shrink-0 h-[42px] px-4 bg-primary hover:bg-[#005f78] text-white text-[12px] font-semibold rounded-xl transition-colors">
