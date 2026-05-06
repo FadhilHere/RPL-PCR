@@ -157,6 +157,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                             <th class="text-left font-semibold text-[#8a9ba8] px-[18px] py-2.5">No. Permohonan</th>
                             <th class="text-left font-semibold text-[#8a9ba8] px-3 py-2.5">Peserta</th>
                             <th class="text-left font-semibold text-[#8a9ba8] px-3 py-2.5">Prodi</th>
+                            <th class="text-left font-semibold text-[#8a9ba8] px-3 py-2.5">Jenis RPL</th>
                             <th class="text-left font-semibold text-[#8a9ba8] px-3 py-2.5">Status</th>
                             <th class="text-left font-semibold text-[#8a9ba8] px-3 py-2.5">Tanggal</th>
                             <th class="text-left font-semibold text-[#8a9ba8] px-3 py-2.5 pr-[18px]">Aksi</th>
@@ -170,6 +171,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                             </td>
                             <td class="px-3 py-3 text-[#1a2a35]">{{ $p->peserta?->user?->nama ?? '—' }}</td>
                             <td class="px-3 py-3 text-[#5a6a75]">{{ $p->programStudi?->nama ?? '—' }}</td>
+                            <td class="px-3 py-3 text-[#5a6a75]">{{ $p->jenis_rpl?->label() ?? '—' }}</td>
                             <td class="px-3 py-3">
                                 <span class="text-[10px] font-semibold px-2 py-[3px] rounded-full {{ $p->status->badgeClass() }}">
                                     {{ $p->status->label() }}
