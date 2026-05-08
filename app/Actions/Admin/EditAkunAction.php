@@ -20,22 +20,20 @@ class EditAkunAction
         bool $sudahPelatihan,
         array $prodiIds,
     ): void {
-        DB::transaction(function () use (
-            $userId, $nama, $email, $newPassword,
-            $nidn, $bidangKeahlian, $sudahPelatihan, $prodiIds,
-        ) {
+        DB::transaction(function () use ($userId, $nama, $email, $newPassword, $nidn, $bidangKeahlian, $sudahPelatihan, $prodiIds, ) {
             $user = User::with(['asesor'])->findOrFail($userId);
 
+            $trimmedPassword = trim($newPassword);
             $updateData = ['nama' => $nama, 'email' => $email];
-            if ($newPassword !== '') {
-                $updateData['password'] = Hash::make($newPassword);
+            if ($trimmedPassword !== '') {
+                $updateData['password'] = Hash::make($trimmedPassword);
             }
             $user->update($updateData);
 
             if ($user->role === RoleEnum::Asesor && $user->asesor) {
                 $user->asesor->update([
-                    'nidn'                => $nidn ?: null,
-                    'bidang_keahlian'     => $bidangKeahlian,
+                    'nidn' => $nidn ?: null,
+                    'bidang_keahlian' => $bidangKeahlian,
                     'sudah_pelatihan_rpl' => $sudahPelatihan,
                 ]);
                 $user->asesor->programStudi()->sync($prodiIds);

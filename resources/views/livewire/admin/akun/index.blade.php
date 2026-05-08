@@ -120,6 +120,8 @@ new #[Layout('components.layouts.admin')] class extends Component {
             'edit.email' => 'required|email|unique:users,email,' . $this->editUserId,
         ];
 
+        $this->edit->newPassword = trim($this->edit->newPassword);
+
         if ($this->edit->newPassword !== '') {
             $rules['edit.newPassword'] = 'min:8';
         }
