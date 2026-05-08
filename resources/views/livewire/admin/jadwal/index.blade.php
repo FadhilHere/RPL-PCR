@@ -179,6 +179,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
                     <th class="text-left px-5 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Jadwal</th>
                     <th class="text-left px-4 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Peserta / No. Permohonan</th>
                     <th class="text-left px-4 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Program Studi</th>
+                    <th class="text-center px-4 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Jenis RPL</th>
                     <th class="text-left px-4 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Asesor</th>
                     <th class="text-center px-4 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Status</th>
                     <th class="text-center px-4 py-3 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Aksi</th>
@@ -200,6 +201,11 @@ new #[Layout('components.layouts.admin')] class extends Component {
                         <div class="text-[11px] text-[#8a9ba8]">{{ $vb->permohonanRpl?->nomor_permohonan ?? '—' }}</div>
                     </td>
                     <td class="px-4 py-3.5 text-[12px] text-[#5a6a75]">{{ $vb->permohonanRpl?->programStudi?->nama ?? '—' }}</td>
+                    <td class="px-4 py-3.5 text-center">
+                        <span class="text-[11px] font-semibold text-[#5a6a75]">
+                            {{ $vb->permohonanRpl?->jenis_rpl?->label() ?? '—' }}
+                        </span>
+                    </td>
                     <td class="px-4 py-3.5 text-[12px] text-[#5a6a75]">
                         @php $asesorList = $vb->permohonanRpl?->asesor; @endphp
                         @if ($asesorList && $asesorList->isNotEmpty())
@@ -245,7 +251,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" class="px-5 py-10 text-center text-[13px] text-[#8a9ba8]">Belum ada jadwal verifikasi.</td>
+                    <td colspan="7" class="px-5 py-10 text-center text-[13px] text-[#8a9ba8]">Belum ada jadwal verifikasi.</td>
                 </tr>
                 @endforelse
             </tbody>
