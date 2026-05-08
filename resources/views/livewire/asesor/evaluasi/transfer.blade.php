@@ -516,7 +516,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                         </div>
                     </div>
                 </div>
-                @elseif (! $rplMk->has_mk_sejenis)
+                @else
                 <div class="mt-5 pt-5 border-t border-[#F0F2F5]">
                     <p class="text-[12px] text-[#8a9ba8] italic mb-4 text-center">Peserta tidak mengisi MK lampau. Asesor tetap bisa memberi nilai transfer untuk MK ini.</p>
 
