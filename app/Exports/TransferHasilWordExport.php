@@ -255,18 +255,49 @@ class TransferHasilWordExport
 
     private function addTtdImage($cell, ?string $ttdPath): void
     {
-        if ($ttdPath && Storage::disk('local')->exists($ttdPath)) {
-            try {
-                $cell->addImage(
-                    Storage::disk('local')->path($ttdPath),
-                    ['width' => 100, 'height' => 50, 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::START]
-                );
-            } catch (\Exception) {
-                $cell->addTextBreak(3);
-            }
-        } else {
+        if (! $ttdPath) {
+            $cell->addTextBreak(3);
+            return;
+        }
+
+        $disk = Storage::disk('local');
+        if (! $disk->exists($ttdPath)) {
+            $cell->addTextBreak(3);
+            return;
+        }
+
+        $path = $disk->path($ttdPath);
+        if (! $this->isValidImage($path)) {
+            $cell->addTextBreak(3);
+            return;
+        }
+
+        try {
+            $cell->addImage(
+                $path,
+                ['width' => 100, 'height' => 50, 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::START]
+            );
+        } catch (\Exception) {
             $cell->addTextBreak(3);
         }
+    }
+
+    private function isValidImage(string $path): bool
+    {
+        if (! is_file($path) || ! is_readable($path)) {
+            return false;
+        }
+
+        $size = @filesize($path);
+        if ($size === false || $size === 0) {
+            return false;
+        }
+
+        if (function_exists('exif_imagetype')) {
+            return exif_imagetype($path) !== false;
+        }
+
+        return is_array(@getimagesize($path));
     }
 
     private function safeText(?string $text): string
