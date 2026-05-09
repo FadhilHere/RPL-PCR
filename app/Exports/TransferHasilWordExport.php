@@ -12,6 +12,7 @@ use App\Services\NilaiKonversiService;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpWord\Element\Section;
 use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\Settings;
 
 class TransferHasilWordExport
 {
@@ -36,6 +37,7 @@ class TransferHasilWordExport
         ]);
 
         $phpWord = new PhpWord();
+        Settings::setOutputEscapingEnabled(true);
         $phpWord->setDefaultFontName('Times New Roman');
         $phpWord->setDefaultFontSize(11);
 
@@ -255,19 +257,19 @@ class TransferHasilWordExport
 
     private function addTtdImage($cell, ?string $ttdPath): void
     {
-        if (! $ttdPath) {
+        if (!$ttdPath) {
             $cell->addTextBreak(3);
             return;
         }
 
         $disk = Storage::disk('local');
-        if (! $disk->exists($ttdPath)) {
+        if (!$disk->exists($ttdPath)) {
             $cell->addTextBreak(3);
             return;
         }
 
         $path = $disk->path($ttdPath);
-        if (! $this->isValidImage($path)) {
+        if (!$this->isValidImage($path)) {
             $cell->addTextBreak(3);
             return;
         }
@@ -284,7 +286,7 @@ class TransferHasilWordExport
 
     private function isValidImage(string $path): bool
     {
-        if (! is_file($path) || ! is_readable($path)) {
+        if (!is_file($path) || !is_readable($path)) {
             return false;
         }
 
