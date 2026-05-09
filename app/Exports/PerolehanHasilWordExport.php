@@ -66,7 +66,7 @@ class PerolehanHasilWordExport
             ['alignment' => 'center']
         );
         $section->addText(
-            'No. ' . $permohonan->nomor_permohonan,
+            $this->safeText('No. ' . $permohonan->nomor_permohonan),
             ['size' => 11],
             ['alignment' => 'center']
         );
@@ -102,7 +102,7 @@ class PerolehanHasilWordExport
             $table->addRow();
             $table->addCell(2800)->addText($label, $labelStyle);
             $table->addCell(300)->addText($label ? ':' : '', $labelStyle);
-            $table->addCell(5000)->addText($value, $valueStyle);
+            $table->addCell(5000)->addText($this->safeText($value), $valueStyle);
         }
     }
 
@@ -144,16 +144,16 @@ class PerolehanHasilWordExport
             if ($lampauList->isNotEmpty()) {
                 foreach ($lampauList as $idx => $lampau) {
                     $table->addRow();
-                    $table->addCell(900)->addText($lampau->kode_mk, $cellStyle);
-                    $table->addCell(2200)->addText($lampau->nama_mk, $cellStyle);
-                    $table->addCell(500)->addText((string) $lampau->sks, $cellStyle, $cellCenter);
-                    $table->addCell(700)->addText($lampau->nilai_huruf?->value ?? '', ['size' => 9, 'bold' => true], $cellCenter);
+                    $table->addCell(900)->addText($this->safeText($lampau->kode_mk), $cellStyle);
+                    $table->addCell(2200)->addText($this->safeText($lampau->nama_mk), $cellStyle);
+                    $table->addCell(500)->addText($this->safeText((string) $lampau->sks), $cellStyle, $cellCenter);
+                    $table->addCell(700)->addText($this->safeText($lampau->nilai_huruf?->value ?? ''), ['size' => 9, 'bold' => true], $cellCenter);
 
                     if ($idx === 0) {
-                        $table->addCell(900)->addText($mk->kode ?? '', $cellStyle);
-                        $table->addCell(2200)->addText($mk->nama ?? '', $cellStyle);
-                        $table->addCell(500)->addText((string) ($mk->sks ?? ''), $cellStyle, $cellCenter);
-                        $table->addCell(700)->addText($nilaiHuruf?->value ?? '', ['size' => 9, 'bold' => true], $cellCenter);
+                        $table->addCell(900)->addText($this->safeText($mk->kode ?? ''), $cellStyle);
+                        $table->addCell(2200)->addText($this->safeText($mk->nama ?? ''), $cellStyle);
+                        $table->addCell(500)->addText($this->safeText((string) ($mk->sks ?? '')), $cellStyle, $cellCenter);
+                        $table->addCell(700)->addText($this->safeText($nilaiHuruf?->value ?? ''), ['size' => 9, 'bold' => true], $cellCenter);
                     } else {
                         $table->addCell(900)->addText('', $cellStyle);
                         $table->addCell(2200)->addText('', $cellStyle);
@@ -164,14 +164,14 @@ class PerolehanHasilWordExport
             } else {
                 // Jika MK lampau kosong, pakai data MK eksisting untuk kolom asal.
                 $table->addRow();
-                $table->addCell(900)->addText($mk->kode ?? '', $cellStyle);
-                $table->addCell(2200)->addText($mk->nama ?? '', $cellStyle);
-                $table->addCell(500)->addText((string) ($mk->sks ?? ''), $cellStyle, $cellCenter);
-                $table->addCell(700)->addText($nilaiHuruf?->value ?? '', ['size' => 9, 'bold' => true], $cellCenter);
-                $table->addCell(900)->addText($mk->kode ?? '', $cellStyle);
-                $table->addCell(2200)->addText($mk->nama ?? '', $cellStyle);
-                $table->addCell(500)->addText((string) ($mk->sks ?? ''), $cellStyle, $cellCenter);
-                $table->addCell(700)->addText($nilaiHuruf?->value ?? '', ['size' => 9, 'bold' => true], $cellCenter);
+                $table->addCell(900)->addText($this->safeText($mk->kode ?? ''), $cellStyle);
+                $table->addCell(2200)->addText($this->safeText($mk->nama ?? ''), $cellStyle);
+                $table->addCell(500)->addText($this->safeText((string) ($mk->sks ?? '')), $cellStyle, $cellCenter);
+                $table->addCell(700)->addText($this->safeText($nilaiHuruf?->value ?? ''), ['size' => 9, 'bold' => true], $cellCenter);
+                $table->addCell(900)->addText($this->safeText($mk->kode ?? ''), $cellStyle);
+                $table->addCell(2200)->addText($this->safeText($mk->nama ?? ''), $cellStyle);
+                $table->addCell(500)->addText($this->safeText((string) ($mk->sks ?? '')), $cellStyle, $cellCenter);
+                $table->addCell(700)->addText($this->safeText($nilaiHuruf?->value ?? ''), ['size' => 9, 'bold' => true], $cellCenter);
             }
         }
     }
@@ -199,7 +199,7 @@ class PerolehanHasilWordExport
             $table->addRow();
             $table->addCell(3200)->addText($label, $boldStyle);
             $table->addCell(300)->addText(':', ['size' => 10]);
-            $table->addCell(3000)->addText($value, ['size' => 10]);
+            $table->addCell(3000)->addText($this->safeText($value), ['size' => 10]);
         }
     }
 
@@ -215,24 +215,24 @@ class PerolehanHasilWordExport
 
         // Kiri: Wakil Direktur
         $cellKiri->addText('Mengetahui,', ['size' => 10]);
-        $cellKiri->addText($this->penandatanganWadir?->jabatan ?? 'Wakil Direktur Bidang Akademik', ['size' => 10]);
+        $cellKiri->addText($this->safeText($this->penandatanganWadir?->jabatan ?? 'Wakil Direktur Bidang Akademik'), ['size' => 10]);
         $cellKiri->addTextBreak(1);
         $this->addTtdImage($cellKiri, $this->penandatanganWadir?->tanda_tangan ?? null);
         $cellKiri->addTextBreak(1);
-        $cellKiri->addText($this->penandatanganWadir?->nama ?? '', ['bold' => true, 'size' => 10]);
+        $cellKiri->addText($this->safeText($this->penandatanganWadir?->nama ?? ''), ['bold' => true, 'size' => 10]);
         if ($this->penandatanganWadir?->nip) {
-            $cellKiri->addText('NIP. ' . $this->penandatanganWadir->nip, ['size' => 10]);
+            $cellKiri->addText($this->safeText('NIP. ' . $this->penandatanganWadir->nip), ['size' => 10]);
         }
 
         // Kanan: Ketua Program Studi
-        $cellKanan->addText('Pekanbaru, ' . $tanggal, ['size' => 10]);
-        $cellKanan->addText($this->programStudiKetua?->ketua_jabatan ?? 'Ketua Program Studi', ['size' => 10]);
+        $cellKanan->addText($this->safeText('Pekanbaru, ' . $tanggal), ['size' => 10]);
+        $cellKanan->addText($this->safeText($this->programStudiKetua?->ketua_jabatan ?? 'Ketua Program Studi'), ['size' => 10]);
         $cellKanan->addTextBreak(1);
         $this->addTtdImage($cellKanan, $this->programStudiKetua?->ketua_tanda_tangan ?? null);
         $cellKanan->addTextBreak(1);
-        $cellKanan->addText($this->programStudiKetua?->ketua_nama ?? '', ['bold' => true, 'size' => 10]);
+        $cellKanan->addText($this->safeText($this->programStudiKetua?->ketua_nama ?? ''), ['bold' => true, 'size' => 10]);
         if ($this->programStudiKetua?->ketua_nip) {
-            $cellKanan->addText('NIP. ' . $this->programStudiKetua->ketua_nip, ['size' => 10]);
+            $cellKanan->addText($this->safeText('NIP. ' . $this->programStudiKetua->ketua_nip), ['size' => 10]);
         }
     }
 
@@ -250,6 +250,28 @@ class PerolehanHasilWordExport
         } else {
             $cell->addTextBreak(3);
         }
+    }
+
+    private function safeText(?string $text): string
+    {
+        if ($text === null) {
+            return '';
+        }
+
+        $value = (string) $text;
+        if ($value === '') {
+            return '';
+        }
+
+        if (function_exists('mb_convert_encoding')) {
+            $value = mb_convert_encoding($value, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
+        } elseif (function_exists('utf8_encode')) {
+            $value = utf8_encode($value);
+        }
+
+        $value = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/u', '', $value);
+
+        return $value ?? '';
     }
 
     private function resolveNilai(\App\Models\RplMataKuliah $rplMk): ?NilaiHurufEnum
