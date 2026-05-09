@@ -179,8 +179,8 @@ new #[Layout('components.layouts.admin')] class extends Component {
             <tbody>
                 @forelse ($list as $p)
                 @php
-                    $totalMk   = $p->rplMataKuliah->count();
-                    $totalSks  = $p->rplMataKuliah->sum(fn($m) => $m->mataKuliah->sks ?? 0);
+                    $totalMk       = $p->rplMataKuliah->count();
+                    $totalSksProdi = (int) ($p->programStudi?->total_sks ?? 0);
                     $mkDiakui  = $p->rplMataKuliah->where('status', \App\Enums\StatusRplMataKuliahEnum::Diakui)->count();
                     $sksDiakui = $p->rplMataKuliah->where('status', \App\Enums\StatusRplMataKuliahEnum::Diakui)->sum(fn($m) => $m->mataKuliah->sks ?? 0);
                     $jenisRplTextClass = match ($p->jenis_rpl) {
@@ -223,9 +223,9 @@ new #[Layout('components.layouts.admin')] class extends Component {
                         @endif
                     </td>
                     <td class="px-4 py-3.5 text-center">
-                        @if ($totalMk > 0)
+                        @if ($totalSksProdi > 0)
                         <span class="text-[12px] font-semibold {{ $sksDiakui > 0 ? 'text-[#1e7e3e]' : 'text-[#5a6a75]' }}">{{ $sksDiakui }}</span>
-                        <span class="text-[11px] text-[#b0bec5]"> / {{ $totalSks }}</span>
+                        <span class="text-[11px] text-[#b0bec5]"> / {{ $totalSksProdi }}</span>
                         @else
                         <span class="text-[11px] text-[#b0bec5]">—</span>
                         @endif
