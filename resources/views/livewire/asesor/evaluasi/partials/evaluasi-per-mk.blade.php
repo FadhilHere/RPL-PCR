@@ -6,21 +6,35 @@
     $mkBadge      = $mkStatus->badgeClass();
     $mkBadgeLabel = $mkStatus->label();
 @endphp
-<div class="bg-white rounded-xl border border-[#E5E8EC] overflow-hidden mb-4" wire:key="rplmk-{{ $rplMk->id }}">
+<div class="bg-white rounded-xl border border-[#E5E8EC] overflow-hidden mb-4" wire:key="rplmk-{{ $rplMk->id }}" x-data="{ open: false }">
 
     {{-- Header MK --}}
-    <div class="flex items-center gap-3 px-5 py-4 border-b border-[#F0F2F5] bg-[#FAFBFC]"
+    <div class="flex items-center gap-3 px-5 py-4 border-b border-[#F0F2F5] bg-[#FAFBFC] cursor-pointer select-none"
          x-data="{ badge: '{{ $mkBadge }}', label: '{{ $mkBadgeLabel }}' }"
+         @click="open = !open"
          @mk-status-updated.window="if ($event.detail.mkId == {{ $rplMk->id }}) { badge = $event.detail.badge; label = $event.detail.label; }">
         <span class="text-[10px] font-semibold text-primary bg-[#E8F4F8] px-[7px] py-[3px] rounded shrink-0">{{ $mk->kode }}</span>
         <div class="flex-1">
             <div class="text-[13px] font-semibold text-[#1a2a35]">{{ $mk->nama }}</div>
             <div class="text-[11px] text-[#8a9ba8]">{{ $mk->sks }} SKS · Semester {{ $mk->semester }}</div>
         </div>
-        <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full" :class="badge" x-text="label"></span>
+        @if ($rplMk->has_mk_sejenis && $rplMk->matkulLampau->isNotEmpty())
+        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#E8F4F8] text-primary shrink-0">Ada MK Lampau</span>
+        @endif
+        <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0" :class="badge" x-text="label"></span>
+        <svg :class="open ? 'rotate-180' : ''" class="w-4 h-4 text-[#8a9ba8] shrink-0 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+        </svg>
     </div>
 
-    <div class="px-5 py-4">
+    <div class="px-5 py-4"
+         x-show="open"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0">
 
         {{-- CPMK referensi --}}
         @if ($mk->cpmk->isNotEmpty())

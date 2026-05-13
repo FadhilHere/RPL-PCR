@@ -354,21 +354,37 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     {{-- List MK --}}
     <div class="space-y-4 mb-6">
         @foreach ($permohonan->rplMataKuliah as $rplMk)
-        <div class="bg-white rounded-[10px] border border-[#E5E8EC] overflow-hidden" wire:key="mk-{{ $rplMk->id }}">
+        <div class="bg-white rounded-[10px] border border-[#E5E8EC] overflow-hidden" wire:key="mk-{{ $rplMk->id }}" x-data="{ open: false }">
             {{-- Header MK --}}
-            <div class="px-5 py-3.5 border-b border-[#F0F2F5] flex items-center justify-between">
+            <div class="px-5 py-3.5 border-b border-[#F0F2F5] flex items-center justify-between cursor-pointer select-none"
+                 @click="open = !open">
                 <div>
                     <div class="text-[13px] font-semibold text-[#1a2a35]">{{ $rplMk->mataKuliah->nama }}</div>
                     <div class="text-[11px] text-[#8a9ba8]">{{ $rplMk->mataKuliah->kode }} &middot; {{ $rplMk->mataKuliah->sks }} SKS</div>
                 </div>
-                @if ($rplMk->status !== StatusRplMataKuliahEnum::Menunggu)
-                <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full {{ $rplMk->status->badgeClass() }}">
-                    {{ $rplMk->status->label() }}
-                </span>
-                @endif
+                <div class="flex items-center gap-2">
+                    @if ($rplMk->has_mk_sejenis && $rplMk->matkulLampau->isNotEmpty())
+                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#E8F4F8] text-primary">Ada MK Lampau</span>
+                    @endif
+                    @if ($rplMk->status !== StatusRplMataKuliahEnum::Menunggu)
+                    <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full {{ $rplMk->status->badgeClass() }}">
+                        {{ $rplMk->status->label() }}
+                    </span>
+                    @endif
+                    <svg :class="open ? 'rotate-180' : ''" class="w-4 h-4 text-[#8a9ba8] shrink-0 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
             </div>
 
-            <div class="p-5">
+            <div class="p-5"
+                 x-show="open"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0">
                 {{-- CPMK & Asesmen Mandiri Peserta (Hanya views, tanpa form input/VATM) --}}
                 @if ($rplMk->mataKuliah->cpmk->isNotEmpty())
                 <div class="mb-5">
@@ -482,22 +498,35 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                                         Catatan Asesor untuk <span class="text-primary">{{ $ml->kode_mk }} — {{ $ml->nama_mk }}</span>
                                     </label>
                                     <div wire:ignore
-                                         x-data="{ content: @entangle('catatanLampau.'.$ml->id), quill: null }"
-                                         x-init="
-                                            quill = new Quill($refs.quillLampau{{ $ml->id }}, {
-                                                theme: 'snow',
-                                                placeholder: 'Tulis catatan asesor terkait matkul PT Asal ini...',
-                                                modules: {
-                                                    toolbar: [
-                                                        ['bold', 'italic', 'underline'],
-                                                        [{ 'list': 'ordered'}, { 'list': 'bullet' }]
-                                                    ]
-                                                }
-                                            });
-                                            if (content) quill.root.innerHTML = content;
-                                            quill.on('text-change', () => { content = quill.root.innerHTML === '<p><br></p>' ? '' : quill.root.innerHTML; });
-                                         ">
-                                        <div x-ref="quillLampau{{ $ml->id }}"></div>
+                                         x-data="{
+                                            initialized: false,
+                                            content: @entangle('catatanLampau.'.$ml->id),
+                                            quill: null,
+                                            initQuill() {
+                                                if (this.initialized) return;
+                                                this.initialized = true;
+                                                this.$nextTick(() => {
+                                                    this.quill = new Quill(this.$refs.quillLampau{{ $ml->id }}, {
+                                                        theme: 'snow',
+                                                        placeholder: 'Tulis catatan asesor terkait matkul PT Asal ini...',
+                                                        modules: { toolbar: [['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }]] }
+                                                    });
+                                                    if (this.content) this.quill.root.innerHTML = this.content;
+                                                    this.quill.on('text-change', () => {
+                                                        this.content = this.quill.root.innerHTML === '<p><br></p>' ? '' : this.quill.root.innerHTML;
+                                                    });
+                                                    this.quill.focus();
+                                                });
+                                            }
+                                         }">
+                                        <div x-show="!initialized"
+                                             @click="initQuill()"
+                                             class="border border-[#D8DDE2] rounded-lg p-3 min-h-[80px] cursor-text hover:border-primary transition-colors text-[12px] text-[#1a2a35] prose prose-sm max-w-none"
+                                             x-html="content || '<span class=\'text-[#8a9ba8]\'>Klik untuk menambahkan catatan...</span>'">
+                                        </div>
+                                        <div x-show="initialized">
+                                            <div x-ref="quillLampau{{ $ml->id }}"></div>
+                                        </div>
                                     </div>
                                 </div>
                                 @endforeach
