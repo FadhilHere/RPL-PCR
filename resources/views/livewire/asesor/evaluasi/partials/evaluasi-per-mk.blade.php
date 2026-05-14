@@ -538,6 +538,16 @@
                             if (raw === null) return '';
                             return raw >= 3 ? this.labelDiakui : this.labelTidak;
                         },
+                        nilaiHurufFromRata(raw) {
+                            if (raw === null) return '';
+                            if (raw >= 5.0) return 'A';
+                            if (raw >= 4.5) return 'AB';
+                            if (raw >= 4.0) return 'B';
+                            if (raw >= 3.5) return 'BC';
+                            if (raw >= 3.0) return 'C';
+                            if (raw >= 2.0) return 'D';
+                            return 'E';
+                        },
                         dispatchPrediksi() {
                             const raw = this.rataRataRaw();
                             const status = raw === null
@@ -556,7 +566,8 @@
                      x-show="rataRataRaw() !== null" x-cloak>
                     <span class="text-[11px] text-[#8a9ba8]">
                         Rata-rata nilai asesor:
-                        <span class="font-semibold text-[#1a2a35]" x-text="rataRataDisplay()"></span> / 5
+                        <span class="font-semibold text-[#1a2a35]" x-text="rataRataDisplay()"></span>
+                        <span class="text-[#8a9ba8]" x-text="'(' + nilaiHurufFromRata(rataRataRaw()) + ')'"></span> / 5
                     </span>
                     <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full"
                           :class="diakui() ? 'bg-[#E6F4EA] text-[#1e7e3e]' : 'bg-[#FCE8E6] text-[#c62828]'">

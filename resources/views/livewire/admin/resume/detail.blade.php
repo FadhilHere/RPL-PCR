@@ -3,6 +3,7 @@
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use App\Actions\Asesor\HitungKeputusanMkAction;
+use App\Enums\NilaiHurufEnum;
 use App\Enums\StatusRplMataKuliahEnum;
 use App\Models\PermohonanRpl;
 
@@ -35,6 +36,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
                 'rplMk'       => $rplMk,
                 'mk'          => $rplMk->mataKuliah,
                 'rataRata'    => $rataRata,
+                'nilaiHuruf'  => $rataRata !== null ? NilaiHurufEnum::fromRataRata($rataRata) : null,
                 'rataPeserta' => $rataPeserta ? round($rataPeserta, 2) : null,
                 'rekomendasi' => $rekomendasi,
                 'statusAkhir' => $rplMk->status,
@@ -45,7 +47,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
             ($d['statusAkhir'] ?? $d['rekomendasi']) === StatusRplMataKuliahEnum::Diakui
         );
 
-        $totalSks       = $this->permohonan->rplMataKuliah->sum(fn($m) => $m->mataKuliah->sks ?? 0);
+        $totalSks       = $this->permohonan->programStudi->total_sks ?? 0;
         $totalSksDiakui = $mkDiakui->sum(fn($d) => $d['mk']->sks ?? 0);
 
         return compact('mkData', 'mkDiakui', 'totalSks', 'totalSksDiakui');
@@ -134,6 +136,9 @@ new #[Layout('components.layouts.admin')] class extends Component {
                             <td class="py-2.5 px-3 text-center">
                                 <span class="font-semibold {{ $item['rataRata'] !== null ? 'text-primary' : 'text-[#b0bec5]' }}">
                                     {{ $item['rataRata'] ?? '—' }}
+                                    @if ($item['nilaiHuruf'])
+                                    <span class="font-normal text-[#8a9ba8]">({{ $item['nilaiHuruf']->value }})</span>
+                                    @endif
                                 </span>
                             </td>
                             <td class="py-2.5 px-3 text-center">
