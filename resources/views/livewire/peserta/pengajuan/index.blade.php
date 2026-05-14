@@ -45,14 +45,14 @@ new #[Layout('components.layouts.peserta')] class extends Component {
     <div class="bg-white rounded-[10px] border border-[#E5E8EC] overflow-hidden">
         @forelse ($permohonanList as $p)
         @php
-            $status      = $p->status;
-            $isDisproses = $status === StatusPermohonanEnum::Diproses;
+            $status      = $p->statusUntukPeserta();
+            $isDisproses = $p->status === StatusPermohonanEnum::Diproses;
             $jadwalVb    = $p->verifikasiBersama
                 ->where('status', StatusVerifikasiEnum::Terjadwal)
                 ->sortByDesc('id')
                 ->first();
             $showJadwal  = $jadwalVb && in_array($status, [StatusPermohonanEnum::Diproses, StatusPermohonanEnum::Verifikasi]);
-            $showSks     = $status === StatusPermohonanEnum::Disetujui;
+            $showSks     = $p->status === StatusPermohonanEnum::Disetujui && $p->sudahDirilis();
         @endphp
         <div class="flex items-center gap-4 px-5 py-4 border-b border-[#F6F8FA] last:border-0 hover:bg-[#FAFBFC] transition-colors">
             <div class="flex-1 min-w-0">

@@ -66,17 +66,21 @@ new #[Layout('components.layouts.peserta')] class extends Component {
             ? 'Verifikasi Bersama Asesor'
             : 'Asesmen oleh Asesor';
 
-        $statusLabel = $permohonan ? match($permohonan->status) {
+        $statusUntukPeserta = $permohonan?->statusUntukPeserta();
+        $statusLabel = $permohonan ? match($statusUntukPeserta) {
             StatusPermohonanEnum::Diajukan    => 'Permohonan Telah Diajukan',
             StatusPermohonanEnum::Diproses    => 'Asesmen Mandiri Dapat Dimulai',
             StatusPermohonanEnum::Asesmen     => 'Asesmen Sedang Berlangsung',
             StatusPermohonanEnum::Verifikasi  => 'Verifikasi Bersama Asesor',
             StatusPermohonanEnum::Disetujui   => 'Permohonan Disetujui',
             StatusPermohonanEnum::Ditolak     => 'Permohonan Ditolak',
-            default                           => $permohonan->status->label(),
+            default                           => $statusUntukPeserta->label(),
         } : '';
 
-        $sksDiakui    = $permohonan ? $permohonan->rplMataKuliah->where('status', StatusRplMataKuliahEnum::Diakui)->sum(fn($m) => $m->mataKuliah->sks) : 0;
+        // Sembunyikan SKS rekognisi sampai hasil dirilis admin
+        $sksDiakui    = ($permohonan && $permohonan->sudahDirilis())
+            ? $permohonan->rplMataKuliah->where('status', StatusRplMataKuliahEnum::Diakui)->sum(fn($m) => $m->mataKuliah->sks)
+            : 0;
         $sksTotalProdi = $permohonan ? ($permohonan->programStudi->total_sks ?? 0) : 0;
         $sksPersen    = $sksTotalProdi > 0 ? round($sksDiakui / $sksTotalProdi * 100) : 0;
         // Hijau jika ≥50% (akan disetujui), oranye jika di bawah threshold
@@ -88,7 +92,8 @@ new #[Layout('components.layouts.peserta')] class extends Component {
             $tahapAktifKey,
             StatusPermohonanEnum::Disetujui->value,
         ];
-        $effectiveVal = $permohonan?->status?->value ?? StatusPermohonanEnum::Diajukan->value;
+        // Gunakan statusUntukPeserta agar step aktif tersembunyi kalau belum dirilis
+        $effectiveVal = $statusUntukPeserta?->value ?? StatusPermohonanEnum::Diajukan->value;
         $statusOrder  = array_search($effectiveVal, $allStatuses);
         $stepLabels   = [
             StatusPermohonanEnum::Diajukan->value    => 'Pengajuan Dikirim',
@@ -192,17 +197,22 @@ new #[Layout('components.layouts.peserta')] class extends Component {
             </div>
             @forelse ($allRplMk->take(5) as $rplMk)
             @php
-                $mkStatus = $rplMk->status ?? StatusRplMataKuliahEnum::Menunggu;
-                $pStatus  = $rplMk->permohonanRpl?->status;
+                $mkStatus        = $rplMk->status ?? StatusRplMataKuliahEnum::Menunggu;
+                $pStatus         = $rplMk->permohonanRpl?->statusUntukPeserta();
+                $parentDirilis   = $rplMk->permohonanRpl?->sudahDirilis() ?? false;
+                // Sembunyikan Diakui/TidakDiakui kalau parent belum dirilis
+                $mkStatusDisplay = (! $parentDirilis && in_array($mkStatus, [StatusRplMataKuliahEnum::Diakui, StatusRplMataKuliahEnum::TidakDiakui]))
+                    ? StatusRplMataKuliahEnum::Menunggu
+                    : $mkStatus;
                 [$badgeCls, $badgeLabel] = match(true) {
-                    $mkStatus === StatusRplMataKuliahEnum::Diakui       => ['bg-[#E6F4EA] text-[#1e7e3e]', 'Diakui'],
-                    $mkStatus === StatusRplMataKuliahEnum::TidakDiakui  => ['bg-[#FCE8E6] text-[#c62828]', 'Tidak Diakui'],
-                    $pStatus === StatusPermohonanEnum::Asesmen           => ['bg-[#FFF8E1] text-[#b45309]', 'Asesmen'],
-                    $pStatus === StatusPermohonanEnum::Verifikasi        => ['bg-[#FFF8E1] text-[#b45309]', 'Verifikasi'],
-                    $pStatus === StatusPermohonanEnum::Diproses          => ['bg-[#E8F0FE] text-[#1557b0]', 'Diproses'],
-                    $pStatus === StatusPermohonanEnum::Diajukan          => ['bg-[#E8F0FE] text-[#1557b0]', 'Diajukan'],
-                    $pStatus === StatusPermohonanEnum::Ditolak           => ['bg-[#FCE8E6] text-[#c62828]', 'Ditolak'],
-                    default                                              => ['bg-[#F1F3F4] text-[#5f6368]', 'Menunggu'],
+                    $mkStatusDisplay === StatusRplMataKuliahEnum::Diakui       => ['bg-[#E6F4EA] text-[#1e7e3e]', 'Diakui'],
+                    $mkStatusDisplay === StatusRplMataKuliahEnum::TidakDiakui  => ['bg-[#FCE8E6] text-[#c62828]', 'Tidak Diakui'],
+                    $pStatus === StatusPermohonanEnum::Asesmen                  => ['bg-[#FFF8E1] text-[#b45309]', 'Asesmen'],
+                    $pStatus === StatusPermohonanEnum::Verifikasi               => ['bg-[#FFF8E1] text-[#b45309]', 'Verifikasi'],
+                    $pStatus === StatusPermohonanEnum::Diproses                 => ['bg-[#E8F0FE] text-[#1557b0]', 'Diproses'],
+                    $pStatus === StatusPermohonanEnum::Diajukan                 => ['bg-[#E8F0FE] text-[#1557b0]', 'Diajukan'],
+                    $pStatus === StatusPermohonanEnum::Ditolak                  => ['bg-[#FCE8E6] text-[#c62828]', 'Ditolak'],
+                    default                                                     => ['bg-[#F1F3F4] text-[#5f6368]', 'Menunggu'],
                 };
             @endphp
             <div class="flex items-center gap-3.5 px-[18px] py-3 border-b border-[#F6F8FA] last:border-0">

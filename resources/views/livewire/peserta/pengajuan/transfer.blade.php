@@ -508,8 +508,8 @@ new #[Layout('components.layouts.peserta')] class extends Component {
             ✓ Asesmen Disubmit
         </span>
         @else
-        <span class="text-[12px] font-medium px-3 py-1.5 rounded-lg {{ $permohonan->status->badgeClass() }}">
-            {{ $permohonan->status->label() }}
+        <span class="text-[12px] font-medium px-3 py-1.5 rounded-lg {{ $permohonan->statusUntukPeserta()->badgeClass() }}">
+            {{ $permohonan->statusUntukPeserta()->label() }}
         </span>
         @endif
     </div>
