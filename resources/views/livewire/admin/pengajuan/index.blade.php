@@ -154,6 +154,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
                     <th class="text-left px-5 py-3.5 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Program Studi</th>
                     <th class="text-left px-5 py-3.5 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Tgl Pengajuan</th>
                     <th class="text-left px-5 py-3.5 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Status</th>
+                    <th class="text-left px-5 py-3.5 text-[11px] font-semibold text-[#8a9ba8] uppercase tracking-[0.5px]">Dirilis Pada</th>
                     <th class="px-5 py-3.5"></th>
                 </tr>
             </thead>
@@ -169,6 +170,9 @@ new #[Layout('components.layouts.admin')] class extends Component {
                     <td class="px-5 py-3.5">
                         <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full {{ $p->status->badgeClass() }}">{{ $p->status->label() }}</span>
                     </td>
+                    <td class="px-5 py-3.5 text-[#5a6a75]">
+                        {{ $p->dirilis_pada ? $p->dirilis_pada->format('d M Y') : '-' }}
+                    </td>
                     <td class="px-5 py-3.5 text-right">
                         <a href="{{ route('admin.pengajuan.detail', $p->id) }}"
                            class="text-[12px] font-semibold text-primary hover:text-[#005f78] transition-colors no-underline">
@@ -178,7 +182,7 @@ new #[Layout('components.layouts.admin')] class extends Component {
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" class="px-5 py-12 text-center text-[13px] text-[#8a9ba8]">
+                    <td colspan="7" class="px-5 py-12 text-center text-[13px] text-[#8a9ba8]">
                         Belum ada permohonan RPL.
                     </td>
                 </tr>
