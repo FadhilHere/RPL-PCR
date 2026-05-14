@@ -4,10 +4,13 @@ namespace App\Models;
 
 use App\Enums\JenisRplEnum;
 use App\Enums\StatusRplMataKuliahEnum;
+use App\Observers\RplMataKuliahObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+#[ObservedBy([RplMataKuliahObserver::class])]
 class RplMataKuliah extends Model
 {
     protected $table = 'rpl_mata_kuliah';

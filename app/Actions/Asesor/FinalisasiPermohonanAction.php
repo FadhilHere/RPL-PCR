@@ -48,18 +48,7 @@ class FinalisasiPermohonanAction
                 $vb->update(['status' => StatusVerifikasiEnum::Selesai]);
             }
 
-            // Hitung 50% SKS rule
-            $sksDiakui = $permohonan->rplMataKuliah
-                ->where('status', StatusRplMataKuliahEnum::Diakui)
-                ->sum(fn ($mk) => $mk->mataKuliah->sks ?? 0);
-
-            $totalSks = $permohonan->programStudi->total_sks ?? 0;
-            $batasMin = $totalSks * 0.50;
-
-            $finalStatus = ($totalSks > 0 && $sksDiakui >= $batasMin)
-                ? StatusPermohonanEnum::Disetujui
-                : StatusPermohonanEnum::Ditolak;
-
+            $finalStatus = $permohonan->hitungStatusByAturan();
             $permohonan->update(['status' => $finalStatus]);
 
             return $finalStatus;
