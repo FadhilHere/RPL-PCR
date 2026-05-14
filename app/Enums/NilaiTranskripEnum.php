@@ -19,10 +19,7 @@ enum NilaiTranskripEnum: string
     case CPlus = 'C+';
     case C = 'C';
     case CMinus = 'C-';
-    case DPlus = 'D+';
     case D = 'D';
-    case DMinus = 'D-';
-    case EPlus = 'E+';
     case E = 'E';
 
     public function label(): string

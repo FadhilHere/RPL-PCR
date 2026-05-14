@@ -4,12 +4,15 @@ use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use Livewire\WithFileUploads;
 use App\Actions\Asesor\FinalisasiPermohonanAction;
+use App\Actions\Asesor\ManageMatkulLampauAction;
 use App\Actions\Asesor\SanitizeCatatanAsesorAction;
 use App\Actions\Asesor\SelesaikanVerifikasiAction;
 use App\Enums\JenisRplEnum;
 use App\Enums\NilaiHurufEnum;
+use App\Enums\NilaiTranskripEnum;
 use App\Enums\StatusPermohonanEnum;
 use App\Enums\StatusRplMataKuliahEnum;
+use App\Models\MatkulLampau;
 use App\Models\PermohonanRpl;
 use App\Models\RplMataKuliah;
 
@@ -23,6 +26,10 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     public array $nilaiTransfer = [];
     // catatanLampau[matkul_lampau_id] = string
     public array $catatanLampau = [];
+    // editForm[matkul_lampau_id] = [kode_mk_asesor, nama_mk_asesor, sks_asesor, nilai_huruf_asesor]
+    public array $editForm = [];
+    // form tambah MK Lampau manual (shared, satu sekaligus)
+    public array $tambahForm = ['kode_mk_asesor' => '', 'nama_mk_asesor' => '', 'sks_asesor' => '', 'nilai_huruf_asesor' => ''];
 
     public function mount(PermohonanRpl $permohonan): void
     {
@@ -55,6 +62,12 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
             foreach ($rplMk->matkulLampau as $ml) {
                 $this->catatanLampau[$ml->id] = $ml->catatan_asesor ?? '';
+                $this->editForm[$ml->id] = [
+                    'kode_mk_asesor'     => $ml->kode_mk_final ?? '',
+                    'nama_mk_asesor'     => $ml->nama_mk_final ?? '',
+                    'sks_asesor'         => $ml->sks_final ?? '',
+                    'nilai_huruf_asesor' => $ml->nilai_huruf_final?->value ?? '',
+                ];
             }
         }
     }
@@ -121,10 +134,76 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         $this->dispatch('notify-saved');
     }
 
+    public function simpanEditMatkulLampau(int $mlId, ManageMatkulLampauAction $action): void
+    {
+        $this->validate([
+            "editForm.{$mlId}.kode_mk_asesor"     => 'required|string|max:20',
+            "editForm.{$mlId}.nama_mk_asesor"      => 'required|string|max:255',
+            "editForm.{$mlId}.sks_asesor"          => 'required|integer|min:1|max:20',
+            "editForm.{$mlId}.nilai_huruf_asesor"  => 'nullable|string|in:' . implode(',', array_column(NilaiTranskripEnum::cases(), 'value')),
+        ]);
+
+        $ml = $this->findMl($mlId);
+        $action->updateAsesor($ml, $this->editForm[$mlId]);
+
+        $this->permohonan->load(['rplMataKuliah.matkulLampau']);
+        $this->dispatch('ml-saved', mlId: $mlId);
+        $this->dispatch('notify-saved');
+    }
+
+    public function tambahMatkulLampau(int $rplMkId, ManageMatkulLampauAction $action): void
+    {
+        $this->validate([
+            'tambahForm.kode_mk_asesor'     => 'required|string|max:20',
+            'tambahForm.nama_mk_asesor'     => 'required|string|max:255',
+            'tambahForm.sks_asesor'         => 'required|integer|min:1|max:20',
+            'tambahForm.nilai_huruf_asesor' => 'nullable|string|in:' . implode(',', array_column(NilaiTranskripEnum::cases(), 'value')),
+        ]);
+
+        $rplMk = RplMataKuliah::query()
+            ->whereIn('id', $this->permohonan->rplMataKuliah->pluck('id'))
+            ->findOrFail($rplMkId);
+
+        $ml = $action->create($rplMk, $this->tambahForm);
+
+        $this->catatanLampau[$ml->id] = '';
+        $this->editForm[$ml->id] = [
+            'kode_mk_asesor'     => $this->tambahForm['kode_mk_asesor'],
+            'nama_mk_asesor'     => $this->tambahForm['nama_mk_asesor'],
+            'sks_asesor'         => $this->tambahForm['sks_asesor'],
+            'nilai_huruf_asesor' => $this->tambahForm['nilai_huruf_asesor'],
+        ];
+        $this->tambahForm = ['kode_mk_asesor' => '', 'nama_mk_asesor' => '', 'sks_asesor' => '', 'nilai_huruf_asesor' => ''];
+        $this->permohonan->load(['rplMataKuliah.matkulLampau']);
+        $this->dispatch('notify-saved');
+    }
+
+    public function hapusMatkulLampau(int $mlId, ManageMatkulLampauAction $action): void
+    {
+        $ml = $this->findMl($mlId);
+        $action->delete($ml);
+
+        unset($this->catatanLampau[$mlId]);
+        $this->permohonan->load(['rplMataKuliah.matkulLampau']);
+        $this->dispatch('notify-saved');
+    }
+
+    private function findMl(int $mlId): MatkulLampau
+    {
+        $validIds = $this->permohonan->rplMataKuliah
+            ->flatMap(fn($rplMk) => $rplMk->matkulLampau->pluck('id'))
+            ->all();
+
+        abort_if(! in_array($mlId, $validIds), 403);
+
+        return MatkulLampau::findOrFail($mlId);
+    }
+
     public function with(): array
     {
         return [
-            'nilaiHurufOptions' => NilaiHurufEnum::cases(),
+            'nilaiHurufOptions'    => NilaiHurufEnum::cases(),
+            'nilaiTranskripOptions' => NilaiTranskripEnum::cases(),
         ];
     }
 }; ?>
@@ -135,7 +214,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     &rsaquo; {{ $permohonan->nomor_permohonan }} &rsaquo; Evaluasi Transfer
 </x-slot:subtitle>
 
-<div x-data="{ saved: false }" @notify-saved.window="saved = true; setTimeout(() => saved = false, 3000)">
+<div x-data="{ saved: false, confirmModal: { show: false, id: 0 } }" @notify-saved.window="saved = true; setTimeout(() => saved = false, 3000)">
 
     {{-- Toast Notif --}}
     <div x-show="saved"
@@ -363,7 +442,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                     <div class="text-[11px] text-[#8a9ba8]">{{ $rplMk->mataKuliah->kode }} &middot; {{ $rplMk->mataKuliah->sks }} SKS</div>
                 </div>
                 <div class="flex items-center gap-2">
-                    @if ($rplMk->has_mk_sejenis && $rplMk->matkulLampau->isNotEmpty())
+                    @if ($rplMk->matkulLampau->isNotEmpty())
                     <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#E8F4F8] text-primary">Ada MK Lampau</span>
                     @endif
                     @if ($rplMk->status !== StatusRplMataKuliahEnum::Menunggu)
@@ -421,34 +500,192 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                 </div>
                 @endif
 
-                {{-- MK Lampau peserta (jika ada) --}}
-                @if ($rplMk->has_mk_sejenis && $rplMk->matkulLampau->isNotEmpty())
-                <div class="mb-5 border-t border-[#F0F2F5] pt-5">
-                    <div class="text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.8px] mb-2">MK di PT Asal yang Diajukan Peserta</div>
-                    <div class="bg-[#F4F6F8] rounded-xl overflow-hidden mb-4 border border-[#E5E8EC]">
+                {{-- MK Lampau (selalu tampil, editable) --}}
+                <div class="mb-5 border-t border-[#F0F2F5] pt-5" x-data="{ showTambah: false }" @notify-saved.window="showTambah = false">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="text-[10px] font-semibold text-[#8a9ba8] uppercase tracking-[0.8px]">MK di PT Asal yang Diajukan Peserta</div>
+                    </div>
+                    <div class="bg-[#F4F6F8] rounded-xl overflow-hidden mb-3 border border-[#E5E8EC]">
                         <table class="w-full text-[12px]">
                             <thead>
                                 <tr class="border-b border-[#E5E8EC]">
-                                    <th class="text-left font-semibold text-[#8a9ba8] px-4 py-2.5">Kode MK</th>
+                                    <th class="text-left font-semibold text-[#8a9ba8] px-4 py-2.5 w-[110px]">Kode MK</th>
                                     <th class="text-left font-semibold text-[#8a9ba8] px-4 py-2.5">Nama MK PT Asal</th>
-                                    <th class="text-center font-semibold text-[#8a9ba8] px-4 py-2.5 w-20">SKS</th>
-                                    <th class="text-center font-semibold text-[#8a9ba8] px-4 py-2.5 w-28">Nilai Peserta</th>
+                                    <th class="text-center font-semibold text-[#8a9ba8] px-4 py-2.5 w-[90px]">SKS</th>
+                                    <th class="text-center font-semibold text-[#8a9ba8] px-4 py-2.5 w-[160px]">Nilai</th>
+                                    <th class="text-center font-semibold text-[#8a9ba8] px-4 py-2.5 w-[150px]">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach ($rplMk->matkulLampau as $ml)
-                                <tr class="border-b border-[#EFF1F3] last:border-0 bg-white">
-                                    <td class="px-4 py-3 text-[#5a6a75] font-medium">{{ $ml->kode_mk }}</td>
-                                    <td class="px-4 py-3 text-[#1a2a35] font-semibold">{{ $ml->nama_mk }}</td>
-                                    <td class="px-4 py-3 text-center text-[#5a6a75]">{{ $ml->sks }}</td>
-                                    <td class="px-4 py-3 text-center">
-                                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[#E8F4F8] text-primary text-[12px] font-bold">{{ $ml->nilai_huruf?->value ?? '-' }}</span>
+                                @forelse ($rplMk->matkulLampau as $ml)
+                                <tr x-data="{ editing: false }"
+                                    @ml-saved.window="if ($event.detail.mlId === {{ $ml->id }}) editing = false"
+                                    wire:key="ml-{{ $ml->id }}"
+                                    class="border-b border-[#EFF1F3] last:border-0 bg-white">
+                                    {{-- Display mode --}}
+                                    <template x-if="!editing">
+                                        <td class="px-4 py-3 text-[#5a6a75] font-medium">
+                                            @if ($ml->isOverridden('kode_mk'))
+                                            <span class="inline-block w-1 h-4 bg-amber-400 mr-1.5 rounded-sm align-middle" title="Diedit asesor"></span>
+                                            @endif
+                                            {{ $ml->kode_mk_final ?? '—' }}
+                                        </td>
+                                    </template>
+                                    <template x-if="editing">
+                                        <td class="px-3 py-2">
+                                            <input type="text" wire:model.defer="editForm.{{ $ml->id }}.kode_mk_asesor" placeholder="Kode MK"
+                                                   class="w-full h-[38px] rounded-xl border border-[#E0E5EA] px-3 text-[12px] text-[#1a2a35] focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10">
+                                            @error("editForm.{$ml->id}.kode_mk_asesor") <p class="text-[10px] text-red-500 mt-0.5">{{ $message }}</p> @enderror
+                                        </td>
+                                    </template>
+
+                                    <template x-if="!editing">
+                                        <td class="px-4 py-3 text-[#1a2a35] font-semibold">
+                                            @if ($ml->isOverridden('nama_mk'))
+                                            <span class="inline-block w-1 h-4 bg-amber-400 mr-1.5 rounded-sm align-middle" title="Diedit asesor"></span>
+                                            @endif
+                                            {{ $ml->nama_mk_final ?? '—' }}
+                                        </td>
+                                    </template>
+                                    <template x-if="editing">
+                                        <td class="px-3 py-2">
+                                            <input type="text" wire:model.defer="editForm.{{ $ml->id }}.nama_mk_asesor" placeholder="Nama MK"
+                                                   class="w-full h-[38px] rounded-xl border border-[#E0E5EA] px-3 text-[12px] text-[#1a2a35] focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10">
+                                            @error("editForm.{$ml->id}.nama_mk_asesor") <p class="text-[10px] text-red-500 mt-0.5">{{ $message }}</p> @enderror
+                                        </td>
+                                    </template>
+
+                                    <template x-if="!editing">
+                                        <td class="px-4 py-3 text-center text-[#5a6a75]">
+                                            @if ($ml->isOverridden('sks'))
+                                            <span class="inline-block w-1 h-4 bg-amber-400 mr-1.5 rounded-sm align-middle" title="Diedit asesor"></span>
+                                            @endif
+                                            {{ $ml->sks_final ?? '—' }}
+                                        </td>
+                                    </template>
+                                    <template x-if="editing">
+                                        <td class="px-3 py-2">
+                                            <input type="number" wire:model.defer="editForm.{{ $ml->id }}.sks_asesor" placeholder="SKS" min="1" max="20"
+                                                   class="w-full h-[38px] rounded-xl border border-[#E0E5EA] px-3 text-[12px] text-[#1a2a35] text-center focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10">
+                                            @error("editForm.{$ml->id}.sks_asesor") <p class="text-[10px] text-red-500 mt-0.5">{{ $message }}</p> @enderror
+                                        </td>
+                                    </template>
+
+                                    <template x-if="!editing">
+                                        <td class="px-4 py-3 text-center">
+                                            @if ($ml->isOverridden('nilai_huruf'))
+                                            <span class="inline-block w-1 h-4 bg-amber-400 mr-1.5 rounded-sm align-middle" title="Diedit asesor"></span>
+                                            @endif
+                                            <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[#E8F4F8] text-primary text-[12px] font-bold">{{ $ml->nilai_huruf_final?->value ?? '-' }}</span>
+                                        </td>
+                                    </template>
+                                    <template x-if="editing">
+                                        <td class="px-3 py-2">
+                                            <input type="text" wire:model.defer="editForm.{{ $ml->id }}.nilai_huruf_asesor" placeholder="mis. A, AB, B+"
+                                                   class="w-full h-[38px] rounded-xl border border-[#E0E5EA] px-3 text-[12px] text-[#1a2a35] focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10">
+                                            @error("editForm.{$ml->id}.nilai_huruf_asesor") <p class="text-[10px] text-red-500 mt-0.5">{{ $message }}</p> @enderror
+                                        </td>
+                                    </template>
+
+                                    <template x-if="!editing">
+                                        <td class="px-4 py-3 text-center">
+                                            <div class="flex items-center justify-center gap-1.5">
+                                                <button type="button"
+                                                        @click="editing = true"
+                                                        class="text-[#5a6a75] hover:text-primary transition-colors p-1.5"
+                                                        title="Edit"
+                                                        aria-label="Edit">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                                                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                                    </svg>
+                                                </button>
+                                                <button type="button"
+                                                        @click="confirmModal = { show: true, id: {{ $ml->id }} }"
+                                                        class="text-[#c62828] hover:text-[#a02020] transition-colors p-1.5"
+                                                        title="Hapus"
+                                                        aria-label="Hapus">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                                                        <path d="M10 11v6"/><path d="M14 11v6"/>
+                                                        <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </template>
+                                    <template x-if="editing">
+                                        <td class="px-3 py-2 text-center">
+                                            <div class="flex items-center justify-center gap-1.5">
+                                                <button type="button"
+                                                        @click="editing = false; $wire.simpanEditMatkulLampau({{ $ml->id }})"
+                                                        class="h-[34px] px-4 rounded-xl bg-primary text-white text-[12px] font-semibold hover:bg-[#005f78] transition-colors">
+                                                    Simpan
+                                                </button>
+                                                <button type="button"
+                                                        @click="editing = false"
+                                                        class="h-[34px] px-4 rounded-xl border border-[#D0D5DD] text-[#5a6a75] text-[12px] font-medium hover:border-[#8a9ba8] hover:text-[#1a2a35] transition-colors">
+                                                    Batal
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </template>
+                                </tr>
+                                @empty
+                                <tr class="bg-white">
+                                    <td colspan="5" class="px-4 py-5 text-center text-[12px] text-[#8a9ba8] italic">Belum ada MK Lampau yang diinput.</td>
+                                </tr>
+                                @endforelse
+
+                                {{-- Form Tambah MK Lampau --}}
+                                <tr x-show="showTambah" wire:key="tambah-form-{{ $rplMk->id }}" class="bg-white border-t-2 border-[#E0E5EA]">
+                                    <td class="px-3 py-3">
+                                        <input type="text" wire:model.defer="tambahForm.kode_mk_asesor" placeholder="MK001"
+                                               class="w-full h-[42px] rounded-xl border border-[#E0E5EA] px-3 text-[12px] text-[#1a2a35] focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10">
+                                        @error('tambahForm.kode_mk_asesor') <p class="text-[10px] text-red-500 mt-0.5">{{ $message }}</p> @enderror
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <input type="text" wire:model.defer="tambahForm.nama_mk_asesor" placeholder="Nama mata kuliah di PT Asal"
+                                               class="w-full h-[42px] rounded-xl border border-[#E0E5EA] px-3 text-[12px] text-[#1a2a35] focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10">
+                                        @error('tambahForm.nama_mk_asesor') <p class="text-[10px] text-red-500 mt-0.5">{{ $message }}</p> @enderror
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <input type="number" wire:model.defer="tambahForm.sks_asesor" placeholder="SKS" min="1" max="20"
+                                               class="w-full h-[42px] rounded-xl border border-[#E0E5EA] px-3 text-[12px] text-[#1a2a35] text-center focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10">
+                                        @error('tambahForm.sks_asesor') <p class="text-[10px] text-red-500 mt-0.5">{{ $message }}</p> @enderror
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <input type="text" wire:model.defer="tambahForm.nilai_huruf_asesor" placeholder="mis. A, AB, B+"
+                                               class="w-full h-[42px] rounded-xl border border-[#E0E5EA] px-3 text-[12px] text-[#1a2a35] focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10">
+                                        @error('tambahForm.nilai_huruf_asesor') <p class="text-[10px] text-red-500 mt-0.5">{{ $message }}</p> @enderror
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <div class="flex items-center justify-center gap-2">
+                                            <button type="button"
+                                                    wire:click="tambahMatkulLampau({{ $rplMk->id }})"
+                                                    class="h-[42px] px-5 rounded-xl bg-primary text-white text-[12px] font-semibold hover:bg-[#005f78] transition-colors whitespace-nowrap">
+                                                Tambah
+                                            </button>
+                                            <button type="button"
+                                                    @click="showTambah = false"
+                                                    class="h-[42px] px-4 rounded-xl border border-[#D0D5DD] text-[#5a6a75] text-[12px] font-medium hover:border-[#8a9ba8] hover:text-[#1a2a35] transition-colors whitespace-nowrap">
+                                                Batal
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
-                                @endforeach
                             </tbody>
                         </table>
                     </div>
+                    <button type="button"
+                            @click="showTambah = !showTambah"
+                            x-show="!showTambah"
+                            class="flex items-center gap-1.5 text-[12px] font-medium text-primary hover:underline mb-4">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        Tambah MK Lampau Manual
+                    </button>
 
                     {{-- MK Tujuan (Header) --}}
                     <div class="rounded-xl border-2 border-[#BDE0EB] overflow-hidden mb-4">
@@ -491,11 +728,12 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                             </div>
 
                             {{-- Kanan: Catatan Lampau --}}
+                            @if ($rplMk->matkulLampau->isNotEmpty())
                             <div class="flex-1 space-y-4">
                                 @foreach ($rplMk->matkulLampau as $ml)
                                 <div wire:key="cat-lampau-ui-{{ $ml->id }}">
                                     <label class="block text-[12px] font-semibold text-[#1a2a35] mb-2">
-                                        Catatan Asesor untuk <span class="text-primary">{{ $ml->kode_mk }} — {{ $ml->nama_mk }}</span>
+                                        Catatan Asesor untuk <span class="text-primary">{{ $ml->kode_mk_final ?? '—' }} — {{ $ml->nama_mk_final ?? '—' }}</span>
                                     </label>
                                     <div wire:ignore
                                          x-data="{
@@ -531,9 +769,10 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                                 </div>
                                 @endforeach
                             </div>
+                            @endif
                         </div>
 
-                        {{-- Simpan Semua Info Asesor --}}
+                        {{-- Simpan Nilai --}}
                         <div class="mt-6 flex items-center justify-between gap-3">
                             <p class="text-[11px] text-[#8a9ba8]">
                                 Status ditentukan otomatis dari nilai huruf. Nilai di bawah C akan tidak diakui.
@@ -545,43 +784,41 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                         </div>
                     </div>
                 </div>
-                @else
-                <div class="mt-5 pt-5 border-t border-[#F0F2F5]">
-                    <p class="text-[12px] text-[#8a9ba8] italic mb-4 text-center">Peserta tidak mengisi MK lampau. Asesor tetap bisa memberi nilai transfer untuk MK ini.</p>
-
-                    <div class="bg-white rounded-xl border border-[#E5E8EC] px-5 py-5 shadow-sm">
-                        <div class="mb-3">
-                            <label class="block text-[12px] font-semibold text-[#1a2a35] mb-3">Konversi Nilai Asesor</label>
-                            <div class="flex gap-2 flex-wrap mb-1">
-                                @foreach ($nilaiHurufOptions as $opt)
-                                <button type="button"
-                                        wire:click="$set('nilaiTransfer.{{ $rplMk->id }}', '{{ $opt->value }}')"
-                                        class="w-12 h-12 rounded-xl text-[14px] font-bold border-2 transition-all
-                                               {{ ($nilaiTransfer[$rplMk->id] ?? '') === $opt->value
-                                                   ? 'bg-primary border-primary text-white shadow-md shadow-primary/20'
-                                                   : 'bg-white border-[#D0D5DD] text-[#5a6a75] hover:border-primary hover:text-primary' }}">
-                                    {{ $opt->value }}
-                                </button>
-                                @endforeach
-                            </div>
-                            @error("nilaiTransfer.{$rplMk->id}") <p class="mt-1.5 text-[12px] text-[#c62828]">{{ $message }}</p> @enderror
-                        </div>
-
-                        <div class="mt-6 flex items-center justify-between gap-3">
-                            <p class="text-[11px] text-[#8a9ba8]">
-                                Status ditentukan otomatis dari nilai huruf. Nilai di bawah C akan tidak diakui.
-                            </p>
-                            <button wire:click="simpanNilai({{ $rplMk->id }})"
-                                    class="h-[38px] px-5 bg-primary hover:bg-[#005f78] text-white text-[12px] font-semibold rounded-xl transition-all flex items-center gap-1.5">
-                                Simpan Nilai
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                @endif
             </div>
         </div>
         @endforeach
+    </div>
+
+    <div x-show="confirmModal.show"
+         x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+         x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+        <div @click.outside="confirmModal.show = false" @keydown.escape.window="confirmModal.show = false"
+             class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6"
+             x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-full bg-[#FCE8E6] flex items-center justify-center shrink-0">
+                    <svg class="w-5 h-5 text-[#c62828]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[14px] font-semibold text-[#1a2a35]">Hapus MK Lampau?</div>
+                    <div class="text-[12px] text-[#8a9ba8]">Data akan dihapus permanen.</div>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button @click="confirmModal.show = false"
+                        class="flex-1 h-[40px] border border-[#D8DDE2] text-[#1a2a35] text-[13px] font-semibold rounded-xl hover:bg-[#F4F6F8] transition-colors">
+                    Batal
+                </button>
+                <button @click="$wire.hapusMatkulLampau(confirmModal.id); confirmModal.show = false"
+                        class="flex-1 h-[40px] bg-[#c62828] hover:bg-[#b71c1c] text-white text-[13px] font-semibold rounded-xl transition-colors">
+                    Ya, Hapus
+                </button>
+            </div>
+        </div>
     </div>
 
     {{-- Tombol Selesai (Finalisasi Permohonan) --}}
@@ -592,8 +829,9 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                 ->sum(fn ($mk) => $mk->mataKuliah->sks ?? 0);
             $totalSksProdi   = $permohonan->programStudi->total_sks ?? 0;
             $persenSks       = $totalSksProdi > 0 ? round($sksDiakuiPreview / $totalSksProdi * 100) : 0;
-            $akanDisetujui   = $totalSksProdi > 0 && $sksDiakuiPreview >= ($totalSksProdi * 0.5);
-            $masihMenunggu   = $permohonan->rplMataKuliah->contains(fn ($mk) => $mk->status === StatusRplMataKuliahEnum::Menunggu);
+            $akanDisetujui     = $totalSksProdi > 0 && $sksDiakuiPreview >= ($totalSksProdi * 0.5);
+            $akanMelebihiBatas = $totalSksProdi > 0 && $sksDiakuiPreview > ($totalSksProdi * 0.7);
+            $masihMenunggu     = $permohonan->rplMataKuliah->contains(fn ($mk) => $mk->status === StatusRplMataKuliahEnum::Menunggu);
         @endphp
 
         <div x-data="{ openFinal: false }" class="mt-2 mb-4">
@@ -648,6 +886,14 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                                 karena SKS yang diakui di bawah 50%.
                             @endif
                         </div>
+                        @if (!$masihMenunggu && $akanMelebihiBatas)
+                        <div class="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                            <svg class="w-4 h-4 text-amber-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                            <span class="text-[11px] text-amber-700">SKS yang diakui melebihi <strong>70%</strong> dari total SKS prodi. Pastikan sudah sesuai sebelum memfinalisasi.</span>
+                        </div>
+                        @endif
                     </div>
                     <div class="px-6 py-4 border-t border-[#F0F2F5] flex items-center justify-end gap-2">
                         <button type="button" @click="openFinal = false"

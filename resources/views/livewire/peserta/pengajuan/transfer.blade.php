@@ -38,7 +38,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         foreach ($this->permohonan->rplMataKuliah as $rplMk) {
             $this->hasMkSejenis[$rplMk->id] = $rplMk->has_mk_sejenis;
 
-            $lampau = $rplMk->matkulLampau->first();
+            $lampau = $rplMk->matkulLampau->whereNotNull('kode_mk')->first();
 
             $this->matkulLampau[$rplMk->id] = $lampau ? [
                 'id'          => $lampau->id,
@@ -107,8 +107,8 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         $rplMk->update(['has_mk_sejenis' => $newValue]);
 
         if (! $newValue) {
-            // Hapus semua matkul lampau jika dimatikan
-            MatkulLampau::where('rpl_mata_kuliah_id', $rplMkId)->delete();
+            // Hapus hanya row peserta, bukan row asesor-tambah (kode_mk IS NULL)
+            MatkulLampau::where('rpl_mata_kuliah_id', $rplMkId)->whereNotNull('kode_mk')->delete();
             $this->matkulLampau[$rplMkId] = [
                 'id'          => null,
                 'kode_mk'     => '',
@@ -464,7 +464,7 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                 </div>
                 @endif
 
-                @foreach ($rplMk->matkulLampau as $ml)
+                @foreach ($rplMk->matkulLampau->whereNotNull('kode_mk') as $ml)
                     @if ($ml->catatan_asesor)
                     <div class="mt-3 bg-[#FFF8E1] border border-[#FFE082] rounded-xl px-4 py-3">
                         <div class="text-[10px] font-semibold text-[#b45309] uppercase tracking-[0.7px] mb-1">Catatan Asesor — MK Lampau ({{ $ml->kode_mk }})</div>

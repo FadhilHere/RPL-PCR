@@ -5,16 +5,20 @@ use Livewire\Volt\Component;
 use Livewire\WithFileUploads;
 use App\Actions\Asesor\FinalisasiPermohonanAction;
 use App\Actions\Asesor\HitungKeputusanMkAction;
+use App\Actions\Asesor\ManageMatkulLampauAction;
 use App\Actions\Asesor\SanitizeCatatanAsesorAction;
 use App\Actions\Asesor\SelesaikanVerifikasiAction;
 use App\Actions\Asesor\SimpanStatusMkAction;
 use App\Enums\NilaiHurufEnum;
+use App\Enums\NilaiTranskripEnum;
 use App\Enums\StatusPermohonanEnum;
 use App\Enums\StatusRplMataKuliahEnum;
 use App\Models\Asesor;
 use App\Models\EvaluasiVatm;
+use App\Models\MatkulLampau;
 use App\Models\NilaiAsesor;
 use App\Models\PermohonanRpl;
+use App\Models\RplMataKuliah;
 
 new #[Layout('components.layouts.asesor')] class extends Component {
     use WithFileUploads;
@@ -49,6 +53,10 @@ new #[Layout('components.layouts.asesor')] class extends Component {
     public array $nilaiTransfer = [];
     // catatanLampau[matkul_lampau_id] = string
     public array $catatanLampau = [];
+    // editForm[matkul_lampau_id] = [kode_mk_asesor, nama_mk_asesor, sks_asesor, nilai_huruf_asesor]
+    public array $editForm = [];
+    // form tambah MK Lampau manual (shared, satu sekaligus)
+    public array $tambahForm = ['kode_mk_asesor' => '', 'nama_mk_asesor' => '', 'sks_asesor' => '', 'nilai_huruf_asesor' => ''];
 
     // Profil peserta — di-load on-demand saat tombol "Profil Peserta" diklik
     public bool $profilPesertaLoaded = false;
@@ -77,6 +85,12 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
             foreach ($rplMk->matkulLampau as $ml) {
                 $this->catatanLampau[$ml->id] = $ml->catatan_asesor ?? '';
+                $this->editForm[$ml->id] = [
+                    'kode_mk_asesor'     => $ml->kode_mk_final ?? '',
+                    'nama_mk_asesor'     => $ml->nama_mk_final ?? '',
+                    'sks_asesor'         => $ml->sks_final ?? '',
+                    'nilai_huruf_asesor' => $ml->nilai_huruf_final?->value ?? '',
+                ];
             }
         }
     }
@@ -268,7 +282,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         $hitungAction = app(HitungKeputusanMkAction::class);
 
         foreach ($rplMataKuliah as $rplMk) {
-            if ($rplMk->has_mk_sejenis && $rplMk->matkulLampau->isNotEmpty()) {
+            if ($rplMk->matkulLampau->isNotEmpty()) {
                 $nilaiTerpilih = (string) ($this->nilaiTransfer[$rplMk->id] ?? $rplMk->nilai_transfer ?? '');
                 $nilaiEnum     = $nilaiTerpilih !== '' ? NilaiHurufEnum::tryFrom($nilaiTerpilih) : null;
 
@@ -333,11 +347,77 @@ new #[Layout('components.layouts.asesor')] class extends Component {
         $this->dispatch('notify-saved');
     }
 
+    public function simpanEditMatkulLampau(int $mlId, ManageMatkulLampauAction $action): void
+    {
+        $this->validate([
+            "editForm.{$mlId}.kode_mk_asesor"     => 'required|string|max:20',
+            "editForm.{$mlId}.nama_mk_asesor"      => 'required|string|max:255',
+            "editForm.{$mlId}.sks_asesor"          => 'required|integer|min:1|max:20',
+            "editForm.{$mlId}.nilai_huruf_asesor"  => 'nullable|string|in:' . implode(',', array_column(NilaiTranskripEnum::cases(), 'value')),
+        ]);
+
+        $ml = $this->findMl($mlId);
+        $action->updateAsesor($ml, $this->editForm[$mlId]);
+
+        unset($this->permohonan);
+        $this->dispatch('ml-saved', mlId: $mlId);
+        $this->dispatch('notify-saved');
+    }
+
+    public function tambahMatkulLampau(int $rplMkId, ManageMatkulLampauAction $action): void
+    {
+        $this->validate([
+            'tambahForm.kode_mk_asesor'     => 'required|string|max:20',
+            'tambahForm.nama_mk_asesor'     => 'required|string|max:255',
+            'tambahForm.sks_asesor'         => 'required|integer|min:1|max:20',
+            'tambahForm.nilai_huruf_asesor' => 'nullable|string|in:' . implode(',', array_column(NilaiTranskripEnum::cases(), 'value')),
+        ]);
+
+        $rplMk = RplMataKuliah::query()
+            ->where('permohonan_rpl_id', $this->permohonanId)
+            ->findOrFail($rplMkId);
+
+        $ml = $action->create($rplMk, $this->tambahForm);
+
+        $this->catatanLampau[$ml->id] = '';
+        $this->editForm[$ml->id] = [
+            'kode_mk_asesor'     => $this->tambahForm['kode_mk_asesor'],
+            'nama_mk_asesor'     => $this->tambahForm['nama_mk_asesor'],
+            'sks_asesor'         => $this->tambahForm['sks_asesor'],
+            'nilai_huruf_asesor' => $this->tambahForm['nilai_huruf_asesor'],
+        ];
+        $this->tambahForm = ['kode_mk_asesor' => '', 'nama_mk_asesor' => '', 'sks_asesor' => '', 'nilai_huruf_asesor' => ''];
+        unset($this->permohonan);
+        $this->dispatch('notify-saved');
+    }
+
+    public function hapusMatkulLampau(int $mlId, ManageMatkulLampauAction $action): void
+    {
+        $ml = $this->findMl($mlId);
+        $action->delete($ml);
+
+        unset($this->catatanLampau[$mlId]);
+        unset($this->permohonan);
+        $this->dispatch('notify-saved');
+    }
+
+    private function findMl(int $mlId): MatkulLampau
+    {
+        $validIds = $this->permohonan->rplMataKuliah
+            ->flatMap(fn($rplMk) => $rplMk->matkulLampau->pluck('id'))
+            ->all();
+
+        abort_if(! in_array($mlId, $validIds), 403);
+
+        return MatkulLampau::findOrFail($mlId);
+    }
+
     public function with(): array
     {
         return [
-            'nilaiHurufOptions' => \App\Enums\NilaiHurufEnum::cases(),
-            'permohonan'        => $this->permohonan,
+            'nilaiHurufOptions'    => NilaiHurufEnum::cases(),
+            'nilaiTranskripOptions' => NilaiTranskripEnum::cases(),
+            'permohonan'           => $this->permohonan,
         ];
     }
 }; ?>
@@ -647,7 +727,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
             $nilaiAsesorState   = $this->nilaiAsesor ?? [];
 
             $statusPrediksiMk = $permohonan->rplMataKuliah->mapWithKeys(function ($mk) use ($nilaiTransferState, $mkStatusState, $nilaiAsesorState) {
-                if ($mk->has_mk_sejenis && $mk->matkulLampau->isNotEmpty()) {
+                if ($mk->matkulLampau->isNotEmpty()) {
                     $nilai     = (string) ($nilaiTransferState[$mk->id] ?? $mk->nilai_transfer ?? '');
                     $nilaiEnum = $nilai !== '' ? NilaiHurufEnum::tryFrom($nilai) : null;
 
@@ -712,6 +792,9 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                 },
                 akanDisetujui() {
                     return this.totalSks > 0 && this.sksDiakui() >= (this.totalSks * 0.5);
+                },
+                akanMelebihiBatas() {
+                    return this.totalSks > 0 && this.sksDiakui() > (this.totalSks * 0.7);
                 }
             }"
             @mk-status-predicted.window="if ($event.detail.mkId in mkStatus) { mkStatus[$event.detail.mkId] = $event.detail.status; }"
@@ -776,6 +859,14 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                                 </div>
                             </template>
                         </div>
+                        <template x-if="!masihMenunggu() && akanMelebihiBatas()">
+                            <div class="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                <svg class="w-4 h-4 text-amber-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                                </svg>
+                                <span class="text-[11px] text-amber-700">SKS yang diakui melebihi <strong>70%</strong> dari total SKS prodi. Pastikan sudah sesuai sebelum memfinalisasi.</span>
+                            </div>
+                        </template>
                     </div>
                     <div class="px-6 py-4 border-t border-[#F0F2F5] flex items-center justify-end gap-2">
                         <button type="button" @click="openFinal = false"

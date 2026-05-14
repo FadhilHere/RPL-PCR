@@ -155,10 +155,10 @@ class TransferHasilWordExport
             if ($lampauList->isNotEmpty()) {
                 foreach ($lampauList as $idx => $lampau) {
                     $table->addRow();
-                    $table->addCell(900)->addText($this->safeText($lampau->kode_mk), $cellStyle);
-                    $table->addCell(2200)->addText($this->safeText($lampau->nama_mk), $cellStyle);
-                    $table->addCell(500)->addText($this->safeText((string) $lampau->sks), $cellStyle, $cellCenter);
-                    $table->addCell(700)->addText($this->safeText($lampau->nilai_huruf?->value ?? ''), ['size' => 9, 'bold' => true], $cellCenter);
+                    $table->addCell(900)->addText($this->safeText($lampau->kode_mk_final), $cellStyle);
+                    $table->addCell(2200)->addText($this->safeText($lampau->nama_mk_final), $cellStyle);
+                    $table->addCell(500)->addText($this->safeText((string) $lampau->sks_final), $cellStyle, $cellCenter);
+                    $table->addCell(700)->addText($this->safeText($lampau->nilai_huruf_final?->value ?? ''), ['size' => 9, 'bold' => true], $cellCenter);
 
                     // MK Tujuan hanya di baris pertama
                     if ($idx === 0) {
@@ -196,7 +196,7 @@ class TransferHasilWordExport
 
         $totalSksAsal = $mkDiakui
             ->flatMap(fn($rplMk) => $rplMk->matkulLampau)
-            ->sum('sks');
+            ->sum(fn($ml) => $ml->sks_final ?? 0);
 
         $sksDiakui = $mkDiakui->sum(fn($rplMk) => $rplMk->mataKuliah->sks ?? 0);
 
