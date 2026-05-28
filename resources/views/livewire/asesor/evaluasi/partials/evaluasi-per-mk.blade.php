@@ -6,7 +6,11 @@
     $mkBadge      = $mkStatus->badgeClass();
     $mkBadgeLabel = $mkStatus->label();
 @endphp
-<div class="bg-white rounded-xl border border-[#E5E8EC] overflow-hidden mb-4" wire:key="rplmk-{{ $rplMk->id }}" x-data="{ open: false }">
+<div id="rplmk-{{ $rplMk->id }}"
+     class="bg-white rounded-xl border border-[#E5E8EC] overflow-hidden mb-4"
+     wire:key="rplmk-{{ $rplMk->id }}"
+     x-data="{ open: window.location.hash === '#rplmk-{{ $rplMk->id }}' }"
+     x-init="if (open) { $nextTick(() => $el.scrollIntoView({ behavior: 'smooth', block: 'start' })); }">
 
     {{-- Header MK --}}
     <div class="flex items-center gap-3 px-5 py-4 border-b border-[#F0F2F5] bg-[#FAFBFC] cursor-pointer select-none"

@@ -136,7 +136,9 @@ new #[Layout('components.layouts.asesor')] class extends Component {
                             $efektifStatus = $item['statusAkhir'] ?? $item['rekomendasi'];
                             $isDiakui = $efektifStatus === \App\Enums\StatusRplMataKuliahEnum::Diakui;
                         @endphp
-                        <tr class="border-b border-[#F6F8FA] last:border-0">
+                        <tr class="border-b border-[#F6F8FA] last:border-0 cursor-pointer hover:bg-[#FAFBFC] transition-colors"
+                            @click="window.location.href = '{{ route('asesor.evaluasi.index', $permohonan) }}#rplmk-{{ $item['rplMk']->id }}'"
+                            title="Klik untuk membuka MK ini di halaman evaluasi">
                             <td class="py-2.5 pr-4">
                                 <div class="font-medium text-[#1a2a35]">{{ $item['mk']->nama }}</div>
                                 <div class="text-[10px] text-[#8a9ba8]">{{ $item['mk']->kode }}</div>

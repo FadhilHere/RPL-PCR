@@ -417,13 +417,7 @@ new #[Layout('components.layouts.asesor')] class extends Component {
 
     {{-- Dokumen Utama Peserta --}}
     @php
-        $dokumenUtama = $permohonan->peserta->dokumenBukti
-            ->filter(fn($dok) => in_array($dok->jenis_dokumen, [
-                \App\Enums\JenisDokumenEnum::Transkrip,
-                \App\Enums\JenisDokumenEnum::Cv,
-                \App\Enums\JenisDokumenEnum::KeteranganMataKuliah,
-            ], true))
-            ->values();
+        $dokumenUtama = $permohonan->peserta->dokumenBukti->values();
     @endphp
     <x-pengajuan.berkas-pendukung :berkaslist="$dokumenUtama" />
 
