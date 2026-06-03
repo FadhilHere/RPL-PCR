@@ -4,7 +4,7 @@
 
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mb-6">
 
-    <div class="flex-1 flex items-start gap-3.5 bg-white rounded-lg border border-[#E5E8EC] p-[16px_18px]">
+    <div class="flex-1 flex items-center gap-3.5 bg-white rounded-lg border border-[#E5E8EC] p-[16px_18px]">
         <div class="w-[38px] h-[38px] rounded-lg bg-[#E8F0FE] flex items-center justify-center shrink-0">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
@@ -17,7 +17,7 @@
         </div>
     </div>
 
-    <div class="flex-1 flex items-start gap-3.5 bg-white rounded-lg border border-[#E5E8EC] p-[16px_18px]">
+    <div class="flex-1 flex items-center gap-3.5 bg-white rounded-lg border border-[#E5E8EC] p-[16px_18px]">
         <div class="w-[38px] h-[38px] rounded-lg bg-[#E6F4EA] flex items-center justify-center shrink-0">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1e8e3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
@@ -31,7 +31,7 @@
     </div>
 
     @if ($permohonan->status === StatusPermohonanEnum::Disetujui)
-    <div class="flex-1 flex items-start gap-3.5 bg-white rounded-lg border border-[#E5E8EC] p-[16px_18px]">
+    <div class="flex-1 flex items-center gap-3.5 bg-white rounded-lg border border-[#E5E8EC] p-[16px_18px]">
         <div class="w-[38px] h-[38px] rounded-lg bg-[#E6F4EA] flex items-center justify-center shrink-0">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1e7e3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -47,18 +47,22 @@
                 <div class="h-full rounded-full" style="width: {{ min(100, $sksPersen) }}%; background-color: {{ $sksBarColor }}"></div>
             </div>
             @if ($permohonan->sudahDirilis())
-            <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-2 text-[11px] leading-tight">
-                <span class="font-semibold text-[#c62828]">{{ $semesterHarusDiambil }} semester</span>
-                <span class="text-[#8a9ba8]">harus diambil</span>
-                <span class="text-[#cdd5dc]">·</span>
-                <span class="font-semibold text-[#1a2a35]">{{ $sksTidakDiakui }} SKS</span>
-                <span class="text-[#8a9ba8]">tidak diakui</span>
+            <div class="mt-2 space-y-0.5 text-[11px] leading-tight">
+                <div>
+                    <span class="text-[#8a9ba8]">rata-rata</span>
+                    <span class="font-semibold text-[#c62828]">{{ $semesterHarusDiambil }} semester</span>
+                    <span class="text-[#8a9ba8]">harus diambil</span>
+                </div>
+                <div>
+                    <span class="font-semibold text-[#1a2a35]">{{ $sksTidakDiakui }} SKS</span>
+                    <span class="text-[#8a9ba8]">tidak diakui</span>
+                </div>
             </div>
             @endif
         </div>
     </div>
     @else
-    <div class="flex-1 flex items-start gap-3.5 bg-white rounded-lg border border-[#E5E8EC] p-[16px_18px]">
+    <div class="flex-1 flex items-center gap-3.5 bg-white rounded-lg border border-[#E5E8EC] p-[16px_18px]">
         <div class="w-[38px] h-[38px] rounded-lg bg-[#FEF3E2] flex items-center justify-center shrink-0">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e37400" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
