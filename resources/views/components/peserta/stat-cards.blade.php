@@ -1,6 +1,6 @@
 @use('App\Enums\StatusPermohonanEnum')
 
-@props(['permohonan', 'totalMk', 'totalDokumen', 'sksDiakui', 'sksTotalProdi', 'sksPersen', 'sksBarColor'])
+@props(['permohonan', 'totalMk', 'totalDokumen', 'sksDiakui', 'sksTotalProdi', 'sksTidakDiakui', 'semesterHarusDiambil', 'sksPersen', 'sksBarColor'])
 
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mb-6">
 
@@ -46,6 +46,15 @@
             <div class="h-1.5 bg-[#F0F2F5] rounded-full overflow-hidden">
                 <div class="h-full rounded-full" style="width: {{ min(100, $sksPersen) }}%; background-color: {{ $sksBarColor }}"></div>
             </div>
+            @if ($permohonan->sudahDirilis())
+            <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-2 text-[11px] leading-tight">
+                <span class="font-semibold text-[#c62828]">{{ $semesterHarusDiambil }} semester</span>
+                <span class="text-[#8a9ba8]">harus diambil</span>
+                <span class="text-[#cdd5dc]">·</span>
+                <span class="font-semibold text-[#1a2a35]">{{ $sksTidakDiakui }} SKS</span>
+                <span class="text-[#8a9ba8]">tidak diakui</span>
+            </div>
+            @endif
         </div>
     </div>
     @else

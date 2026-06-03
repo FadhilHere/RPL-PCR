@@ -26,6 +26,8 @@ new #[Layout('components.layouts.peserta')] class extends Component {
                 'statusLabel'   => '',
                 'sksDiakui'     => 0,
                 'sksTotalProdi' => 0,
+                'sksTidakDiakui' => 0,
+                'semesterHarusDiambil' => 0,
                 'sksPersen'     => 0,
                 'sksBarColor'   => '#004B5F',
                 'allStatuses'   => [],
@@ -82,6 +84,10 @@ new #[Layout('components.layouts.peserta')] class extends Component {
             ? $permohonan->rplMataKuliah->where('status', StatusRplMataKuliahEnum::Diakui)->sum(fn($m) => $m->mataKuliah->sks)
             : 0;
         $sksTotalProdi = $permohonan ? ($permohonan->programStudi->total_sks ?? 0) : 0;
+        // SKS yang belum diakui = sisa beban studi yang masih harus ditempuh peserta.
+        // Tiap semester ~20 SKS, dibulatkan ke atas (sisa SKS tetap butuh 1 semester penuh).
+        $sksTidakDiakui       = max(0, $sksTotalProdi - $sksDiakui);
+        $semesterHarusDiambil = (int) ceil($sksTidakDiakui / 20);
         $sksPersen    = $sksTotalProdi > 0 ? round($sksDiakui / $sksTotalProdi * 100) : 0;
         // Hijau jika ≥50% (akan disetujui), oranye jika di bawah threshold
         $sksBarColor  = $sksPersen >= 50 ? '#1e7e3e' : '#e37400';
@@ -118,6 +124,8 @@ new #[Layout('components.layouts.peserta')] class extends Component {
             'statusLabel'   => $statusLabel,
             'sksDiakui'     => $sksDiakui,
             'sksTotalProdi' => $sksTotalProdi,
+            'sksTidakDiakui' => $sksTidakDiakui,
+            'semesterHarusDiambil' => $semesterHarusDiambil,
             'sksPersen'     => $sksPersen,
             'sksBarColor'   => $sksBarColor,
             'allStatuses'   => $allStatuses,
@@ -183,6 +191,8 @@ new #[Layout('components.layouts.peserta')] class extends Component {
         :total-dokumen="$totalDokumen"
         :sks-diakui="$sksDiakui"
         :sks-total-prodi="$sksTotalProdi"
+        :sks-tidak-diakui="$sksTidakDiakui"
+        :semester-harus-diambil="$semesterHarusDiambil"
         :sks-persen="$sksPersen"
         :sks-bar-color="$sksBarColor"
     />
