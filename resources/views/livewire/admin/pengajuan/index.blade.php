@@ -244,8 +244,8 @@ new #[Layout('components.layouts.admin')] class extends Component {
                 </div>
             </div>
 
-            {{-- Scrollable list --}}
-            <div class="flex-1 overflow-y-auto">
+            {{-- Scrollable list (maks ~10 baris, sisanya scroll) --}}
+            <div class="flex-1 overflow-y-auto" style="max-height:440px">
                 {{-- Loading state --}}
                 <div x-show="loading" class="flex items-center justify-center py-16">
                     <svg class="animate-spin w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none">
