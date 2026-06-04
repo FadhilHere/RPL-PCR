@@ -85,9 +85,9 @@ new #[Layout('components.layouts.peserta')] class extends Component {
             : 0;
         $sksTotalProdi = $permohonan ? ($permohonan->programStudi->total_sks ?? 0) : 0;
         // SKS yang belum diakui = sisa beban studi yang masih harus ditempuh peserta.
-        // Tiap semester ~20 SKS, dibulatkan ke atas (sisa SKS tetap butuh 1 semester penuh).
+        // Tiap semester ~20 SKS. Kebijakan kampus: tepat .5 dibulatkan ke bawah, hanya >.5 ke atas.
         $sksTidakDiakui       = max(0, $sksTotalProdi - $sksDiakui);
-        $semesterHarusDiambil = (int) ceil($sksTidakDiakui / 20);
+        $semesterHarusDiambil = (int) round($sksTidakDiakui / 20, 0, PHP_ROUND_HALF_DOWN);
         $sksPersen    = $sksTotalProdi > 0 ? round($sksDiakui / $sksTotalProdi * 100) : 0;
         // Hijau jika ≥50% (akan disetujui), oranye jika di bawah threshold
         $sksBarColor  = $sksPersen >= 50 ? '#1e7e3e' : '#e37400';
