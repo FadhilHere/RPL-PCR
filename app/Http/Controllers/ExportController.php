@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\JenisRplEnum;
 use App\Enums\RoleEnum;
 use App\Enums\StatusRplMataKuliahEnum;
+use App\Exports\FormAsesmenWordExport;
 use App\Exports\PerolehanHasilWordExport;
 use App\Exports\ResumeAsesmenExport;
 use App\Exports\TransferHasilWordExport;
@@ -199,6 +200,32 @@ class ExportController extends Controller
 
         $phpWord = $export->generate($permohonan);
         $filename = 'Hasil_' . $jenisStr . '_' . $permohonan->nomor_permohonan . '_' . now()->format('Ymd') . '.docx';
+        $tmpPath = sys_get_temp_dir() . '/' . $filename;
+
+        $writer = IOFactory::createWriter($phpWord, 'Word2007');
+        $writer->save($tmpPath);
+
+        return response()->download($tmpPath, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ])->deleteFileAfterSend(true);
+    }
+
+    // ======================== Form Asesmen (Dokumen Penilaian) ========================
+
+    public function formAsesmenWord(PermohonanRpl $permohonan)
+    {
+        $user = auth()->user();
+
+        $isAsesor = $user->asesor && $permohonan->asesor()->where('asesor_id', $user->asesor->id)->exists();
+        abort_if(
+            !in_array($user->role, [RoleEnum::Admin, RoleEnum::AdminBaak]) && !$isAsesor,
+            403
+        );
+
+        $export = new FormAsesmenWordExport(app(NilaiKonversiService::class));
+        $phpWord = $export->generate($permohonan);
+
+        $filename = 'Form_Asesmen_' . $permohonan->nomor_permohonan . '_' . now()->format('Ymd') . '.docx';
         $tmpPath = sys_get_temp_dir() . '/' . $filename;
 
         $writer = IOFactory::createWriter($phpWord, 'Word2007');

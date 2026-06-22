@@ -36,6 +36,18 @@
             </div>
             @endif
         </div>
+
+        @if (in_array($status, [\App\Enums\StatusPermohonanEnum::Asesmen, \App\Enums\StatusPermohonanEnum::Verifikasi, \App\Enums\StatusPermohonanEnum::Disetujui, \App\Enums\StatusPermohonanEnum::Ditolak], true))
+        <div class="mt-4 pt-4 border-t border-[#F0F2F5]">
+            <a href="{{ route('export.form-asesmen.word', $permohonan) }}"
+               class="inline-flex items-center gap-1.5 h-[34px] px-4 text-[12px] font-semibold text-primary border border-[#BDE0EB] rounded-lg hover:bg-[#E8F4F8] transition-colors no-underline">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+                </svg>
+                Cetak Form Asesmen (Word)
+            </a>
+        </div>
+        @endif
     </div>
 
     {{-- Aksi Admin --}}

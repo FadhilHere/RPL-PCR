@@ -85,6 +85,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('export/resume/asesor/excel', [ExportController::class, 'resumeAsesorExcel'])->name('export.resume.asesor.excel');
     Route::get('export/resume/asesor/pdf', [ExportController::class, 'resumeAsesorPdf'])->name('export.resume.asesor.pdf');
     Route::get('export/hasil/{permohonan}/word', [ExportController::class, 'hasilWord'])->name('export.hasil.word');
+    Route::get('export/form-asesmen/{permohonan}/word', [ExportController::class, 'formAsesmenWord'])->name('export.form-asesmen.word');
 });
 
 // ===================== BERKAS SERVE =====================
