@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Enums\JenisRplEnum;
 use App\Enums\StatusRplMataKuliahEnum;
 use App\Models\PermohonanRpl;
 use App\Models\RplMataKuliah;
@@ -46,8 +47,10 @@ class FormAsesmenWordExport
         $this->addInfoSection($section, $permohonan);
         $section->addTextBreak(1);
 
+        $isTransfer = $permohonan->jenis_rpl === JenisRplEnum::RplI;
+
         foreach ($permohonan->rplMataKuliah as $rplMk) {
-            $this->addMkBlock($section, $rplMk);
+            $this->addMkBlock($section, $rplMk, $isTransfer);
             $section->addTextBreak(1);
         }
 
@@ -104,7 +107,7 @@ class FormAsesmenWordExport
         }
     }
 
-    private function addMkBlock(Section $section, RplMataKuliah $rplMk): void
+    private function addMkBlock(Section $section, RplMataKuliah $rplMk, bool $isTransfer): void
     {
         $mk = $rplMk->mataKuliah;
 
@@ -114,10 +117,10 @@ class FormAsesmenWordExport
         }
         $section->addText($this->safeText($judul), ['bold' => true, 'size' => 11]);
 
-        if ($rplMk->asesmenMandiri->isNotEmpty()) {
-            $this->addAsesmenTable($section, $rplMk);
-        } elseif ($rplMk->matkulLampau->isNotEmpty()) {
+        if ($isTransfer) {
             $this->addTransferTable($section, $rplMk);
+        } elseif ($rplMk->asesmenMandiri->isNotEmpty()) {
+            $this->addAsesmenTable($section, $rplMk);
         } else {
             $section->addText('Belum ada data penilaian.', ['size' => 9, 'italic' => true]);
         }
@@ -217,7 +220,7 @@ class FormAsesmenWordExport
         $cellCenter = ['alignment' => 'center'];
 
         $mk = $rplMk->mataKuliah;
-        $nilaiTransfer = $rplMk->nilai_transfer ?? '';
+        $nilaiTransfer = $this->resolveNilaiTransfer($rplMk);
 
         foreach ($rplMk->matkulLampau as $idx => $lampau) {
             $table->addRow();
@@ -238,6 +241,44 @@ class FormAsesmenWordExport
                 $table->addCell(700)->addText('', $cellStyle);
             }
         }
+
+        $section->addTextBreak(1);
+
+        if ($nilaiTransfer !== '') {
+            $section->addText(
+                $this->safeText('Nilai: ' . $nilaiTransfer),
+                ['size' => 10, 'bold' => true]
+            );
+        } else {
+            $section->addText('Nilai: belum dinilai', ['size' => 10, 'italic' => true]);
+        }
+
+        foreach ($rplMk->matkulLampau as $lampau) {
+            $catatan = trim(strip_tags((string) ($lampau->catatan_asesor ?? '')));
+            if ($catatan !== '') {
+                $section->addText(
+                    $this->safeText('Catatan (' . ($lampau->kode_mk_final ?? '—') . '): ' . $catatan),
+                    ['size' => 10]
+                );
+            }
+        }
+    }
+
+    private function resolveNilaiTransfer(RplMataKuliah $rplMk): string
+    {
+        $rawValue = $rplMk->getRawOriginal('nilai_transfer');
+
+        if (is_string($rawValue) && trim($rawValue) !== '') {
+            return trim($rawValue);
+        }
+
+        $attributeValue = $rplMk->nilai_transfer;
+
+        if (is_string($attributeValue) && trim($attributeValue) !== '') {
+            return trim($attributeValue);
+        }
+
+        return '';
     }
 
     private function addFooterTotals(Section $section, PermohonanRpl $permohonan): void

@@ -222,6 +222,17 @@ class ExportController extends Controller
             403
         );
 
+        $permohonan = $permohonan->fresh([
+            'peserta.user',
+            'programStudi',
+            'tahunAjaran',
+            'rplMataKuliah.mataKuliah',
+            'rplMataKuliah.asesmenMandiri.pertanyaan',
+            'rplMataKuliah.asesmenMandiri.nilaiAsesor',
+            'rplMataKuliah.asesmenMandiri.evaluasiVatm',
+            'rplMataKuliah.matkulLampau',
+        ]) ?? $permohonan;
+
         $export = new FormAsesmenWordExport(app(NilaiKonversiService::class));
         $phpWord = $export->generate($permohonan);
 
