@@ -257,6 +257,8 @@ class FormAsesmenWordExport
             }
         }
 
+        $section->addTextBreak(1);
+
         if ($nilaiTransfer !== '') {
             $section->addText(
                 $this->safeText('Nilai: ' . $nilaiTransfer),
