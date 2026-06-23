@@ -109,6 +109,7 @@ class FormAsesmenWordExport
 
     private function addMkBlock(Section $section, RplMataKuliah $rplMk, bool $isTransfer): void
     {
+
         $mk = $rplMk->mataKuliah;
 
         $judul = trim(($mk?->kode ? $mk->kode . ' — ' : '') . ($mk?->nama ?? ''));
@@ -188,14 +189,24 @@ class FormAsesmenWordExport
 
         $section->addTextBreak(1);
 
-        if ($nilaiList->isNotEmpty()) {
+        $nilaiTransfer = $this->resolveNilaiTransfer($rplMk);
+        if ($nilaiTransfer !== '') {
+            $section->addText(
+                $this->safeText("Nilai: {$nilaiTransfer}"),
+                ['size' => 10, 'bold' => true]
+            );
+        } elseif ($nilaiList->isNotEmpty()) {
             $nilaiHuruf = $this->nilaiKonversi->toHuruf($nilaiList->average());
+
             $section->addText(
                 $this->safeText('Nilai: ' . $nilaiHuruf->value),
                 ['size' => 10, 'bold' => true]
             );
         } else {
-            $section->addText('Nilai: belum dinilai', ['size' => 10, 'italic' => true]);
+            $section->addText(
+                'Nilai: belum dinilai',
+                ['size' => 10, 'italic' => true]
+            );
         }
     }
 
@@ -226,10 +237,12 @@ class FormAsesmenWordExport
 
         foreach ($rplMk->matkulLampau as $idx => $lampau) {
             $table->addRow();
-            $table->addCell(900)->addText($this->safeText($lampau->kode_mk_final), $cellStyle);
-            $table->addCell(2400)->addText($this->safeText($lampau->nama_mk_final), $cellStyle);
-            $table->addCell(500)->addText($this->safeText((string) $lampau->sks_final), $cellStyle, $cellCenter);
-            $table->addCell(700)->addText($this->safeText($lampau->nilai_huruf_asesor?->value ?? ''), ['size' => 9, 'bold' => true], $cellCenter);
+            $table->addCell(900)->addText($this->safeText($lampau->kode_mk_asesor ?? $lampau->kode_mk ?? ''), $cellStyle);
+            $table->addCell(2400)->addText($this->safeText($lampau->nama_mk_asesor ?? $lampau->nama_mk ?? ''), $cellStyle);
+            $table->addCell(500)->addText($this->safeText((string) ($lampau->sks_asesor ?? $lampau->sks ?? '')), $cellStyle, $cellCenter);
+            $table->addCell(700)->addText($this->safeText(
+                (string) ($lampau->nilai_huruf_asesor?->value ?? $lampau->nilai_huruf?->value ?? '')
+            ), ['size' => 9, 'bold' => true], $cellCenter);
 
             if ($idx === 0) {
                 $table->addCell(900)->addText($this->safeText($mk?->kode ?? ''), $cellStyle);
@@ -243,8 +256,6 @@ class FormAsesmenWordExport
                 $table->addCell(700)->addText('', $cellStyle);
             }
         }
-
-        $section->addTextBreak(1);
 
         if ($nilaiTransfer !== '') {
             $section->addText(
@@ -268,9 +279,6 @@ class FormAsesmenWordExport
 
     private function addMatkulLampauSection(Section $section, RplMataKuliah $rplMk): void
     {
-        $section->addTextBreak(1);
-        $section->addText('MK Lampau', ['bold' => true, 'size' => 11]);
-
         $tableStyle = ['borderSize' => 6, 'borderColor' => '000000', 'cellMargin' => 60];
         $table = $section->addTable($tableStyle);
 
@@ -279,25 +287,41 @@ class FormAsesmenWordExport
         $center = ['alignment' => 'center'];
 
         $table->addRow(400);
-        $table->addCell(900, $headerCellStyle)->addText('Kode MK Asal', $headerTextStyle, $center);
-        $table->addCell(2600, $headerCellStyle)->addText('Mata Kuliah Asal', $headerTextStyle, $center);
-        $table->addCell(500, $headerCellStyle)->addText('SKS', $headerTextStyle, $center);
-        $table->addCell(700, $headerCellStyle)->addText('Nilai', $headerTextStyle, $center);
+        $table->addCell(400, $headerCellStyle)->addText('No', $headerTextStyle, $center);
+        $table->addCell(3800, $headerCellStyle)->addText('Sub-Kompetensi', $headerTextStyle, $center);
+        $table->addCell(700, $headerCellStyle)->addText('Nilai Diri', $headerTextStyle, $center);
+        $table->addCell(700, $headerCellStyle)->addText('Nilai Asesor', $headerTextStyle, $center);
+        $table->addCell(400, $headerCellStyle)->addText('V', $headerTextStyle, $center);
+        $table->addCell(400, $headerCellStyle)->addText('A', $headerTextStyle, $center);
+        $table->addCell(400, $headerCellStyle)->addText('T', $headerTextStyle, $center);
+        $table->addCell(400, $headerCellStyle)->addText('M', $headerTextStyle, $center);
 
         $cellStyle = ['size' => 9];
         $cellCenter = ['alignment' => 'center'];
 
-        foreach ($rplMk->matkulLampau as $lampau) {
+        $nilaiList = collect();
+
+        foreach ($rplMk->asesmenMandiri as $idx => $asm) {
+            $vatm = $asm->evaluasiVatm;
+            $nilaiAsesor = $asm->nilaiAsesor?->nilai;
+            if ($nilaiAsesor !== null) {
+                $nilaiList->push($nilaiAsesor);
+            }
+
             $table->addRow();
-            $table->addCell(900)->addText($this->safeText($lampau->kode_mk_final ?? ''), $cellStyle);
-            $table->addCell(2600)->addText($this->safeText($lampau->nama_mk_final ?? ''), $cellStyle);
-            $table->addCell(500)->addText($this->safeText((string) ($lampau->sks_final ?? '')), $cellStyle, $cellCenter);
-            $table->addCell(700)->addText($this->safeText($lampau->nilai_huruf_asesor?->value ?? ''), ['size' => 9, 'bold' => true], $cellCenter);
+            $table->addCell(400)->addText((string) ($idx + 1), $cellStyle, $cellCenter);
+            $table->addCell(3800)->addText($this->safeText($asm->pertanyaan?->pertanyaan ?? ''), $cellStyle);
+            $table->addCell(700)->addText($this->safeText((string) ($asm->penilaian_diri ?? '—')), $cellStyle, $cellCenter);
+            $table->addCell(700)->addText($this->safeText($nilaiAsesor !== null ? (string) $nilaiAsesor : '—'), ['size' => 9, 'bold' => true], $cellCenter);
+            $table->addCell(400)->addText($this->vatmMark($vatm?->valid), $cellStyle, $cellCenter);
+            $table->addCell(400)->addText($this->vatmMark($vatm?->autentik), $cellStyle, $cellCenter);
+            $table->addCell(400)->addText($this->vatmMark($vatm?->terkini), $cellStyle, $cellCenter);
+            $table->addCell(400)->addText($this->vatmMark($vatm?->memadai), $cellStyle, $cellCenter);
         }
+
 
         $nilaiMKLampau = $this->resolveNilaiMKLampau($rplMk);
         if ($nilaiMKLampau !== null) {
-            $section->addTextBreak(1);
             $section->addText(
                 $this->safeText('Nilai: ' . $nilaiMKLampau),
                 ['size' => 10, 'bold' => true]
@@ -307,9 +331,8 @@ class FormAsesmenWordExport
         foreach ($rplMk->matkulLampau as $lampau) {
             $catatan = trim(strip_tags((string) ($lampau->catatan_asesor ?? '')));
             if ($catatan !== '') {
-                $section->addTextBreak(1);
                 $section->addText(
-                    $this->safeText('Catatan (' . ($lampau->kode_mk_final ?? '—') . '): ' . $catatan),
+                    $this->safeText('Catatan Asesor: ') . $catatan,
                     ['size' => 10]
                 );
             }
@@ -318,13 +341,10 @@ class FormAsesmenWordExport
 
     private function resolveNilaiMKLampau(RplMataKuliah $rplMk): ?string
     {
-        $nilaiLampau = $rplMk->matkulLampau
-            ->map(fn($lampau) => $lampau->nilai_huruf_asesor?->value)
-            ->filter(fn($value) => is_string($value) && trim($value) !== '')
-            ->first();
+        $nilaiTransfer = trim((string) ($rplMk->nilai_transfer ?? ''));
 
-        if (is_string($nilaiLampau) && trim($nilaiLampau) !== '') {
-            return trim($nilaiLampau);
+        if ($nilaiTransfer !== '') {
+            return $nilaiTransfer;
         }
 
         $nilaiList = $rplMk->asesmenMandiri
