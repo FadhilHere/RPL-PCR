@@ -7,9 +7,11 @@ use App\Enums\StatusRplMataKuliahEnum;
 use App\Models\PermohonanRpl;
 use App\Models\RplMataKuliah;
 use App\Services\NilaiKonversiService;
+use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpWord\Element\Section;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\Settings;
+use PhpOffice\PhpWord\SimpleType\Jc;
 
 class FormAsesmenWordExport
 {
@@ -24,6 +26,7 @@ class FormAsesmenWordExport
             'peserta.user',
             'programStudi',
             'tahunAjaran',
+            'asesor.user',
             'rplMataKuliah.mataKuliah',
             'rplMataKuliah.asesmenMandiri.pertanyaan',
             'rplMataKuliah.asesmenMandiri.nilaiAsesor',
@@ -55,6 +58,8 @@ class FormAsesmenWordExport
         }
 
         $this->addFooterTotals($section, $permohonan);
+        $section->addTextBreak(1);
+        $this->addTandaTangan($section, $permohonan);
 
         return $phpWord;
     }
@@ -401,6 +406,81 @@ class FormAsesmenWordExport
             $table->addCell(300)->addText(':', ['size' => 10]);
             $table->addCell(3000)->addText($this->safeText($value), ['size' => 10]);
         }
+    }
+
+    private function addTandaTangan(Section $section, PermohonanRpl $permohonan): void
+    {
+        $asesorList = $permohonan->asesor;
+
+        if (!$asesorList || $asesorList->isEmpty()) {
+            return;
+        }
+
+        $tanggal = now()->locale('id')->translatedFormat('d F Y');
+
+        $table = $section->addTable(['borderSize' => 0, 'borderColor' => 'FFFFFF', 'cellMargin' => 60]);
+        $table->addRow();
+
+        // Kolom kiri kosong sebagai spacer
+        $table->addCell(6500)->addText('');
+
+        $cellKanan = $table->addCell(3000);
+        $cellKanan->addText($this->safeText('Pekanbaru, ' . $tanggal), ['size' => 10]);
+        $cellKanan->addText('Asesor,', ['size' => 10]);
+
+        foreach ($asesorList as $asesor) {
+            $cellKanan->addTextBreak(1);
+            $this->addTtdImage($cellKanan, $asesor->tanda_tangan ?? null);
+            $cellKanan->addTextBreak(1);
+            $cellKanan->addText($this->safeText($asesor->user?->nama ?? ''), ['bold' => true, 'size' => 10]);
+            if ($asesor->nidn) {
+                $cellKanan->addText($this->safeText('NIDN. ' . $asesor->nidn), ['size' => 10]);
+            }
+        }
+    }
+
+    private function addTtdImage($cell, ?string $ttdPath): void
+    {
+        if (!$ttdPath) {
+            $cell->addTextBreak(3);
+            return;
+        }
+
+        $disk = Storage::disk('local');
+        if (!$disk->exists($ttdPath)) {
+            $cell->addTextBreak(3);
+            return;
+        }
+
+        $path = $disk->path($ttdPath);
+        if (!$this->isValidImage($path)) {
+            $cell->addTextBreak(3);
+            return;
+        }
+
+        try {
+            $cell->addImage($path, ['width' => 100, 'height' => 50, 'alignment' => Jc::START]);
+        } catch (\Exception) {
+            $cell->addTextBreak(3);
+        }
+    }
+
+    private function isValidImage(string $path): bool
+    {
+        if (!is_file($path) || !is_readable($path)) {
+            return false;
+        }
+
+        $size = @filesize($path);
+        if ($size === false || $size === 0) {
+            return false;
+        }
+
+        if (function_exists('exif_imagetype')) {
+            return exif_imagetype($path) !== false;
+        }
+
+        return \is_array(@getimagesize($path));
     }
 
     private function vatmMark(?bool $value): string

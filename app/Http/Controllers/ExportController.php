@@ -226,6 +226,7 @@ class ExportController extends Controller
             'peserta.user',
             'programStudi',
             'tahunAjaran',
+            'asesor.user',
             'rplMataKuliah.mataKuliah',
             'rplMataKuliah.asesmenMandiri.pertanyaan',
             'rplMataKuliah.asesmenMandiri.nilaiAsesor',
